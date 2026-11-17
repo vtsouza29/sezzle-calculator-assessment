@@ -159,3 +159,33 @@ describe('errors', () => {
   it('next operator gives 0+', () => expect(mainLine(reducer(e, op('+')))).toBe('0+'));
   it('equals after error clears', () => expect(reducer(e, eq)).toEqual(initialState));
 });
+
+describe('repeat expression line', () => {
+  const rep = (result: number, repeat: string) => press(...d('1'), eq, resolved(result, repeat), eq).expressionLine;
+  it('renders sqrt', () => expect(rep(220, '+ sqrt 9')).toBe('220+√9'));
+  it('renders a negative result', () => expect(rep(-2, '^ 2')).toBe('−2^2'));
+  it('renders minus and a negative operand', () => {
+    expect(rep(5, '- 3')).toBe('5−3');
+    expect(rep(5, '- (-3)')).toBe('5−−3');
+  });
+  it('renders * / and %', () => {
+    expect(rep(14, '* 4')).toBe('14×4');
+    expect(rep(8, '/ 2')).toBe('8÷2');
+    expect(rep(220, '+ 10%')).toBe('220+10%');
+  });
+});
+
+describe('result and error status keys', () => {
+  const r = press(...d('9'), eq, resolved(9, '+ 1'));
+  it('sqrt, percent, negate act on the result', () => {
+    expect(mainLine(reducer(r, sqrt))).toBe('√9');
+    expect(mainLine(reducer(r, pct))).toBe('9%');
+    expect(mainLine(reducer(r, neg))).toBe('−9');
+  });
+  const e = press(...d('1'), eq, { type: 'failed', message: 'Undefined' });
+  it('backspace, percent, sqrt after an error', () => {
+    expect(reducer(e, bs)).toEqual(initialState);
+    expect(reducer(e, pct)).toEqual(initialState);
+    expect(mainLine(reducer(e, sqrt))).toBe('√');
+  });
+});

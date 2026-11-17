@@ -25,6 +25,11 @@ const MAX_LEN = 256;
 const blank = (digits = ''): NumberToken => ({ kind: 'number', digits, negative: false, sqrt: false, percent: false });
 const wrap = (n: number) => (n < 0 ? `(${n})` : String(n));
 
+// Repeat fragment is "<op> <operand>", e.g. "- (-3)", "+ sqrt 9", "+ 10%".
+const repeatDisplay = (r: string) =>
+  r.replace(/^[-*/]/, (c) => ({ '-': '−', '*': '×', '/': '÷' })[c]!)
+    .replace(/\(-([^)]+)\)/g, '−$1').replace(/sqrt /g, '√').replace(/ /g, '');
+
 export function mainLine(s: CalcState): string {
   if (s.status === 'result') return String(s.result);
   if (s.status === 'error') return s.message ?? '';
@@ -59,7 +64,7 @@ export function reducer(state: CalcState, action: Action): CalcState {
     if (action.type === 'equals') {
       if (state.repeat === null || state.result === null) return state;
       const request = `${wrap(state.result)} ${state.repeat}`;
-      return { ...state, status: 'pending', request, expressionLine: request.replace(/ /g, '').replace(/\*/g, '×').replace(/\//g, '÷') };
+      return { ...state, status: 'pending', request, expressionLine: toDisplay([numberTokenFrom(state.result)]) + repeatDisplay(state.repeat) };
     }
   }
   const base = state.status === 'error' ? initialState
@@ -69,26 +74,26 @@ export function reducer(state: CalcState, action: Action): CalcState {
   const last = tokens[tokens.length - 1];
   const num = last?.kind === 'number' ? last : null;
   const edit = (next: Token[]): CalcState =>
-    toApiExpression(next).length > MAX_LEN ? state : { ...initialState, tokens: next };
+    toApiExpression(next).length > MAX_LEN ? base : { ...initialState, tokens: next };
 
   switch (action.type) {
     case 'digit':
-      if (num?.percent) return state;
+      if (num?.percent) return base;
       return edit(withNumber(tokens, (n) => (n ? { ...n, digits: n.digits === '0' ? action.digit : n.digits + action.digit } : blank(action.digit))));
     case 'decimal':
-      if (num?.percent || num?.digits.includes('.')) return state;
+      if (num?.percent || num?.digits.includes('.')) return base;
       return edit(withNumber(tokens, (n) => (n ? { ...n, digits: (n.digits || '0') + '.' } : blank('0.'))));
     case 'operator': {
-      if (num && num.digits === '') return state;
+      if (num && num.digits === '') return base;
       const opTok: Token = { kind: 'operator', op: action.op };
       if (last?.kind === 'operator') return edit([...tokens.slice(0, -1), opTok]);
       return edit([...(tokens.length ? tokens : [blank('0')]), opTok]);
     }
     case 'sqrt':
-      if (num?.sqrt) return state;
+      if (num?.sqrt) return base;
       return edit(withNumber(tokens, (n) => (n ? { ...n, sqrt: true } : { ...blank(), sqrt: true })));
     case 'percent':
-      if (!num || num.digits === '' || num.percent) return state;
+      if (!num || num.digits === '' || num.percent) return base;
       return edit(withNumber(tokens, (n) => n && { ...n, percent: true }));
     case 'negate':
       return edit(withNumber(tokens, (n) => {
@@ -96,7 +101,7 @@ export function reducer(state: CalcState, action: Action): CalcState {
         return t.digits === '' && !t.sqrt && !t.negative ? null : t;
       }));
     case 'backspace': {
-      if (!last) return state;
+      if (!last) return base;
       if (!num) return edit(tokens.slice(0, -1));
       return edit(withNumber(tokens, (n) => {
         if (!n) return null;
@@ -106,7 +111,7 @@ export function reducer(state: CalcState, action: Action): CalcState {
       }));
     }
     case 'equals': {
-      if (!last || last.kind === 'operator' || last.digits === '') return base === state ? state : { ...initialState };
+      if (!last || last.kind === 'operator' || last.digits === '') return base === state ? base : { ...initialState };
       return { ...base, status: 'pending', request: toApiExpression(tokens), expressionLine: toDisplay(tokens) };
     }
   }
