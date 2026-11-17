@@ -7,7 +7,7 @@ A full-stack calculator: a Go REST API that owns all the math, and a React + Typ
   <img src="docs/screenshot-dark.png" alt="Calculator, dark theme" width="45%">
 </p>
 
-Highlights: `+ − × ÷ ^ √ % ±`, correct precedence, contextual percent (`200 + 10%` = `220`), repeat-`=`, full keyboard support, light/dark theme, structured errors, tested on both sides (Go stdlib tests, 99 Vitest tests), one-command Docker run.
+Highlights: `+ − × ÷ ^ √ % ±`, correct precedence, contextual percent (`200 + 10%` = `220`), repeat-`=`, full keyboard support, light/dark theme, structured errors, tested on both sides (Go stdlib tests, 105 Vitest tests), one-command Docker run.
 
 ## Quick start
 
@@ -37,9 +37,9 @@ make coverage   # also writes reports to docs/coverage/
 | Area | Statements | Branches | Functions | Lines | Report |
 |---|---|---|---|---|---|
 | Backend `internal/calc` (math) | 94.9% | n/a (Go reports statements) | n/a | n/a | [func list](docs/coverage/backend/coverage.txt), [HTML](docs/coverage/backend/coverage.html) |
-| Backend `internal/api` (HTTP) | 97.0% | n/a | n/a | n/a | (same) |
-| Backend total (all packages) | 83.1%* | n/a | n/a | n/a | (same) |
-| Frontend | 97.87% | 94.23% | 100% | 99.3% | [HTML](docs/coverage/frontend/index.html) |
+| Backend `internal/api` (HTTP) | 97.1% | n/a | n/a | n/a | (same) |
+| Backend total (all packages) | 83.3%* | n/a | n/a | n/a | (same) |
+| Frontend | 98.45% | 95.41% | 100% | 99.32% | [HTML](docs/coverage/frontend/index.html) |
 
 \*The backend total is over all packages, including `cmd/server/main.go` (process wiring, deliberately not unit-tested, 0%). The spec's target was at least 90% on `internal/calc`. Open the HTML reports locally; GitHub shows them as source.
 

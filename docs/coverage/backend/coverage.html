@@ -57,7 +57,7 @@
 				
 				<option value="file0">calculator/cmd/server/main.go (0.0%)</option>
 				
-				<option value="file1">calculator/internal/api/errors.go (86.7%)</option>
+				<option value="file1">calculator/internal/api/errors.go (88.9%)</option>
 				
 				<option value="file2">calculator/internal/api/handlers.go (100.0%)</option>
 				
@@ -199,6 +199,14 @@ var statusFor = map[calc.Code]int{
         CodePayloadTooLarge:        413,
 }
 
+// status maps a code to its HTTP status, defaulting to 500 so WriteHeader never gets 0.
+func status(code calc.Code) int {
+        <span class="cov8" title="1">if s, ok := statusFor[code]; ok </span>{
+                <span class="cov8" title="1">return s
+</span>        }
+        <span class="cov8" title="1">return 500</span>
+}
+
 type errBody struct {
         Code     calc.Code `json:"code"`
         Message  string    `json:"message"`
@@ -216,7 +224,7 @@ func writeErr(w http.ResponseWriter, status int, b errBody) {
 </span>}
 
 func writeCodeErr(w http.ResponseWriter, code calc.Code, msg string) {
-        <span class="cov8" title="1">writeErr(w, statusFor[code], errBody{Code: code, Message: msg})
+        <span class="cov8" title="1">writeErr(w, status(code), errBody{Code: code, Message: msg})
 </span>}
 
 func writeCalcErr(w http.ResponseWriter, err error) {
@@ -229,7 +237,7 @@ func writeCalcErr(w http.ResponseWriter, err error) {
         if ce.Position &gt;= 0 </span>{
                 <span class="cov8" title="1">b.Position = &amp;ce.Position
 </span>        }
-        <span class="cov8" title="1">writeErr(w, statusFor[ce.Code], b)</span>
+        <span class="cov8" title="1">writeErr(w, status(ce.Code), b)</span>
 }
 
 func notFound(w http.ResponseWriter, _ *http.Request) {
@@ -421,6 +429,7 @@ func newError(code Code, pos int) *Error {
 		<pre class="file" id="file6" style="display: none">package calc
 
 import (
+        "errors"
         "strconv"
         "strings"
 )
@@ -492,7 +501,7 @@ func Lex(input string) ([]Token, error) {
 </span>                                }
                         }
                         <span class="cov8" title="1">v, err := strconv.ParseFloat(input[start:i], 64)
-                        if err != nil &amp;&amp; !strings.Contains(err.Error(), "range") </span>{
+                        if err != nil &amp;&amp; !errors.Is(err, strconv.ErrRange) </span>{
                                 <span class="cov0" title="0">return nil, newError(CodeInvalidExpression, start)
 </span>                        }
                         <span class="cov8" title="1">toks = append(toks, Token{TokNumber, v, start})</span>

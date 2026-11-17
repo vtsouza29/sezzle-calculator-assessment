@@ -1,12 +1,13 @@
 calculator/cmd/server/main.go:18:		main			0.0%
 calculator/cmd/server/main.go:38:		run			0.0%
 calculator/cmd/server/main.go:71:		check			0.0%
-calculator/internal/api/errors.go:37:		writeJSON		100.0%
-calculator/internal/api/errors.go:43:		writeErr		100.0%
-calculator/internal/api/errors.go:47:		writeCodeErr		100.0%
-calculator/internal/api/errors.go:51:		writeCalcErr		75.0%
-calculator/internal/api/errors.go:64:		notFound		100.0%
-calculator/internal/api/errors.go:68:		methodNotAllowed	100.0%
+calculator/internal/api/errors.go:32:		status			100.0%
+calculator/internal/api/errors.go:45:		writeJSON		100.0%
+calculator/internal/api/errors.go:51:		writeErr		100.0%
+calculator/internal/api/errors.go:55:		writeCodeErr		100.0%
+calculator/internal/api/errors.go:59:		writeCalcErr		75.0%
+calculator/internal/api/errors.go:72:		notFound		100.0%
+calculator/internal/api/errors.go:76:		methodNotAllowed	100.0%
 calculator/internal/api/handlers.go:16:		decode			100.0%
 calculator/internal/api/handlers.go:31:		evaluate		100.0%
 calculator/internal/api/handlers.go:50:		operation		100.0%
@@ -16,8 +17,8 @@ calculator/internal/api/router.go:31:		requestLogger		100.0%
 calculator/internal/api/static.go:12:		spaHandler		100.0%
 calculator/internal/calc/errors.go:22:		Error			0.0%
 calculator/internal/calc/errors.go:30:		newError		100.0%
-calculator/internal/calc/lexer.go:36:		isDigit			100.0%
-calculator/internal/calc/lexer.go:39:		Lex			97.2%
+calculator/internal/calc/lexer.go:37:		isDigit			100.0%
+calculator/internal/calc/lexer.go:40:		Lex			97.2%
 calculator/internal/calc/operations.go:34:	Apply			100.0%
 calculator/internal/calc/operations.go:56:	Round			100.0%
 calculator/internal/calc/parser.go:30:		peek			100.0%
@@ -32,4 +33,4 @@ calculator/internal/calc/parser.go:128:		prefix			87.5%
 calculator/internal/calc/parser.go:141:		postfix			100.0%
 calculator/internal/calc/parser.go:151:		primary			92.9%
 calculator/internal/calc/parser.go:175:		Evaluate		89.5%
-total:						(statements)		83.1%
+total:						(statements)		83.3%
