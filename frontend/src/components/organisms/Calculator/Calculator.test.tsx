@@ -74,9 +74,17 @@ it('Enter on the theme toggle toggles the theme and does not evaluate', async ()
   render(<Calculator evaluateFn={fn} />)
   await u.keyboard('2+3')
   const before = document.documentElement.dataset.theme
-  const toggle = screen.getAllByRole('button').find((b) => !b.closest('[data-keypad]'))!
+  const toggle = screen.getByRole('button', { name: /Switch to/ })
   toggle.focus()
   await u.keyboard('{Enter}')
   expect(document.documentElement.dataset.theme).not.toBe(before)
   expect(fn).not.toHaveBeenCalled()
+})
+
+it('keeps typing after the theme toggle was clicked', async () => {
+  const u = userEvent.setup()
+  render(<Calculator evaluateFn={vi.fn()} />)
+  await u.click(screen.getByRole('button', { name: /Switch to/ }))
+  await u.keyboard('7')
+  expect(document.querySelector('[aria-live]')).toHaveTextContent('7')
 })
