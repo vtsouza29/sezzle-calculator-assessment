@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import type { evaluate } from '../../../api/client'
 import { keyToAction } from '../../../calculator/keyboard'
-import { mainLine } from '../../../calculator/reducer'
+import { expressionLine, mainLine } from '../../../calculator/reducer'
 import { useCalculator } from '../../../calculator/useCalculator'
 import { ThemeToggle } from '../../atoms/ThemeToggle'
 import { Display } from '../../molecules/Display'
@@ -33,7 +33,7 @@ export function Calculator({ evaluateFn }: { evaluateFn?: typeof evaluate }) {
       <div className={styles.header}>
         <ThemeToggle />
       </div>
-      <Display expression={state.expressionLine} value={mainLine(state)} isError={state.status === 'error'} />
+      <Display expression={expressionLine(state)} value={mainLine(state)} isError={state.status === 'error'} />
       <Keypad onAction={dispatch} />
     </div>
   )

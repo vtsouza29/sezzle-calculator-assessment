@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { initialState, mainLine, reducer, type Action, type CalcState } from './reducer';
+import { expressionLine, initialState, mainLine, reducer, type Action, type CalcState } from './reducer';
 
 const press = (...actions: Action[]): CalcState => actions.reduce(reducer, initialState);
 const d = (s: string): Action[] => [...s].map((c) => (c === '.' ? { type: 'decimal' } : { type: 'digit', digit: c }));
@@ -9,7 +9,8 @@ const bs: Action = { type: 'backspace' };
 const neg: Action = { type: 'negate' };
 const sqrt: Action = { type: 'sqrt' };
 const pct: Action = { type: 'percent' };
-const resolved = (result: number, repeat?: string): Action => ({ type: 'resolved', result, repeat });
+const resolved = (result: number): Action => ({ type: 'resolved', result });
+const request = (s: CalcState) => (s.status === 'pending' ? s.request : null);
 const line = (...a: Action[]) => mainLine(press(...a));
 
 describe('typing', () => {
@@ -35,23 +36,24 @@ describe('equals', () => {
   it('goes pending with the api expression', () => {
     const s = press(...d('2'), op('+'), ...d('3'), op('*'), ...d('4'), eq);
     expect(s.status).toBe('pending');
-    expect(s.request).toBe('2 + 3 * 4');
+    expect(request(s)).toBe('2 + 3 * 4');
   });
   it('resolves to a result', () => {
-    const s = press(...d('2'), op('+'), ...d('3'), op('*'), ...d('4'), eq, resolved(14, '* 4'));
-    expect(s).toMatchObject({ status: 'result', request: null, expressionLine: '2+3×4', result: 14, repeat: '* 4' });
+    const s = press(...d('2'), op('+'), ...d('3'), op('*'), ...d('4'), eq, resolved(14));
+    expect(s).toMatchObject({ status: 'result', expressionLine: '2+3×4', result: 14 });
     expect(mainLine(s)).toBe('14');
   });
   it('repeats with the repeat fragment', () => {
-    const s = press(...d('2'), op('+'), ...d('3'), op('*'), ...d('4'), eq, resolved(14, '* 4'), eq);
+    const s = press(...d('2'), op('+'), ...d('3'), op('*'), ...d('4'), eq, resolved(14), eq);
     expect(s).toMatchObject({ status: 'pending', request: '14 * 4' });
+    expect(expressionLine(s)).toBe('14×4');
   });
   it('wraps a negative result in parentheses', () => {
-    expect(press(...d('1'), eq, resolved(-2, '^ 2'), eq).request).toBe('(-2) ^ 2');
+    expect(request(press(...d('1'), op('^'), ...d('2'), eq, resolved(-2), eq))).toBe('(-2) ^ 2');
   });
   it('repeats a percent expression', () => {
-    const s = press(...d('200'), op('+'), ...d('10'), pct, eq, resolved(220, '+ 10%'), eq);
-    expect(s.request).toBe('220 + 10%');
+    const s = press(...d('200'), op('+'), ...d('10'), pct, eq, resolved(220), eq);
+    expect(request(s)).toBe('220 + 10%');
   });
   it('is a no-op after a result without repeat', () => {
     const s = press(...d('1'), eq, resolved(1));
@@ -66,7 +68,7 @@ describe('equals', () => {
 });
 
 describe('after a result', () => {
-  const r = press(...d('2'), op('+'), ...d('3'), op('*'), ...d('4'), eq, resolved(14, '* 4'));
+  const r = press(...d('2'), op('+'), ...d('3'), op('*'), ...d('4'), eq, resolved(14));
   it('digit starts a new expression', () => {
     const s = reducer(r, { type: 'digit', digit: '7' });
     expect(mainLine(s)).toBe('7');
@@ -77,7 +79,7 @@ describe('after a result', () => {
   it('backspace is unchanged', () => expect(reducer(r, bs)).toBe(r));
   it('negative result continues with a negative number', () => {
     const s = press(...d('1'), eq, resolved(-2), op('+'), ...d('1'), eq);
-    expect(s.request).toBe('(-2) + 1');
+    expect(request(s)).toBe('(-2) + 1');
   });
 });
 
@@ -85,7 +87,7 @@ describe('negate, sqrt, percent', () => {
   it('toggles sign', () => {
     const s = press(...d('2'), neg);
     expect(mainLine(s)).toBe('−2');
-    expect(press(...d('2'), neg, op('^'), ...d('2'), eq).request).toBe('(-2) ^ 2');
+    expect(request(press(...d('2'), neg, op('^'), ...d('2'), eq))).toBe('(-2) ^ 2');
     expect(line(...d('2'), neg, neg)).toBe('2');
   });
   it('negate with no number starts a negative number', () => {
@@ -98,7 +100,7 @@ describe('negate, sqrt, percent', () => {
   it('sqrt before and after digits', () => {
     expect(line(sqrt, ...d('9'))).toBe('√9');
     expect(line(...d('9'), sqrt)).toBe('√9');
-    expect(press(...d('9'), sqrt, eq).request).toBe('sqrt 9');
+    expect(request(press(...d('9'), sqrt, eq))).toBe('sqrt 9');
   });
   it('sqrt twice is a no-op', () => expect(line(...d('9'), sqrt, sqrt)).toBe('√9'));
   it('percent', () => {
@@ -148,10 +150,9 @@ describe('errors', () => {
   const e = press(...d('1'), op('/'), ...d('0'), eq, { type: 'failed', message: 'Undefined' });
   it('shows the message', () => {
     expect(e.status).toBe('error');
-    expect(e.request).toBeNull();
-    expect(mainLine(e)).toBe('Undefined');
+        expect(mainLine(e)).toBe('Undefined');
   });
-  it('keeps the evaluated expression above the message', () => expect(e.expressionLine).toBe('1÷0'));
+  it('keeps the evaluated expression above the message', () => expect(expressionLine(e)).toBe('1÷0'));
   it('next digit starts fresh', () => {
     const s = reducer(e, { type: 'digit', digit: '5' });
     expect(mainLine(s)).toBe('5');
@@ -161,23 +162,36 @@ describe('errors', () => {
   it('equals after error clears', () => expect(reducer(e, eq)).toEqual(initialState));
 });
 
-describe('repeat expression line', () => {
-  const rep = (result: number, repeat: string) => press(...d('1'), eq, resolved(result, repeat), eq).expressionLine;
-  it('renders sqrt', () => expect(rep(220, '+ sqrt 9')).toBe('220+√9'));
-  it('renders a negative result', () => expect(rep(-2, '^ 2')).toBe('−2^2'));
-  it('renders minus and a negative operand', () => {
-    expect(rep(5, '- 3')).toBe('5−3');
-    expect(rep(5, '- (-3)')).toBe('5−−3');
+describe('repeat parity with the old backend repeat', () => {
+  const typed = (...a: Action[]) => press(...a, eq);
+  const again = (typedState: CalcState, result: number) => reducer(reducer(typedState, resolved(result)), eq);
+  const n = (a: Action[], result: number) => again(typed(...a), result);
+  const cases: [string, Action[], number, string, string][] = [
+    ['* 4', [...d('2'), op('+'), ...d('3'), op('*'), ...d('4')], 14, '14 * 4', '14×4'],
+    ['+ 10%', [...d('200'), op('+'), ...d('10'), pct], 220, '220 + 10%', '220+10%'],
+    ['- (-3)', [...d('5'), op('-'), ...d('3'), neg], 8, '8 - (-3)', '8−−3'],
+    ['+ sqrt 9', [...d('1'), op('+'), sqrt, ...d('9')], 220, '220 + sqrt 9', '220+√9'],
+    ['^ 2 on negative', [...d('1'), op('^'), ...d('2')], -2, '(-2) ^ 2', '−2^2'],
+    ['/ 2', [...d('8'), op('/'), ...d('2')], 8, '8 / 2', '8÷2'],
+    ['- 3', [...d('5'), op('-'), ...d('3')], 5, '5 - 3', '5−3'],
+  ];
+  it.each(cases)('%s', (_n, a, result, req, line) => {
+    const s = n(a, result);
+    expect(request(s)).toBe(req);
+    expect(expressionLine(s)).toBe(line);
   });
-  it('renders * / and %', () => {
-    expect(rep(14, '* 4')).toBe('14×4');
-    expect(rep(8, '/ 2')).toBe('8÷2');
-    expect(rep(220, '+ 10%')).toBe('220+10%');
+  it('repeats again from the new result', () => {
+    const s = reducer(reducer(n([...d('5'), op('+'), ...d('5')], 10), resolved(15)), eq);
+    expect(request(s)).toBe('15 + 5');
+  });
+  it('is a no-op without an operator', () => {
+    const s = reducer(typed(...d('42')), resolved(42));
+    expect(reducer(s, eq)).toBe(s);
   });
 });
 
 describe('result and error status keys', () => {
-  const r = press(...d('9'), eq, resolved(9, '+ 1'));
+  const r = press(...d('9'), eq, resolved(9));
   it('sqrt, percent, negate act on the result', () => {
     expect(mainLine(reducer(r, sqrt))).toBe('√9');
     expect(mainLine(reducer(r, pct))).toBe('9%');
@@ -196,6 +210,6 @@ describe('display polish', () => {
     expect(mainLine(press(...d('2'), op('-'), ...d('7'), eq, resolved(-5)))).toBe('−5');
   });
   it('backspace deletes a carried-over e-notation token whole', () => {
-    expect(press(...d('1'), eq, resolved(1e21), op('*'), bs, bs).tokens).toEqual([]);
+    expect(press(...d('1'), eq, resolved(1e21), op('*'), bs, bs)).toEqual(initialState);
   });
 });

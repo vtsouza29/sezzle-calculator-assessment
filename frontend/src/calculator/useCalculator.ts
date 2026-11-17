@@ -4,13 +4,13 @@ import { initialState, reducer } from './reducer';
 
 export function useCalculator(evaluateFn: typeof evaluate = evaluate) {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const { request } = state;
+  const request = state.status === 'pending' ? state.request : null;
 
   useEffect(() => {
     if (request === null) return;
     let ignore = false; // drops stale responses (AC then new =)
     evaluateFn(request).then(
-      (r) => { if (!ignore) dispatch({ type: 'resolved', result: r.result, repeat: r.repeat }); },
+      (r) => { if (!ignore) dispatch({ type: 'resolved', result: r.result }); },
       (e) => {
         if (!ignore) dispatch({ type: 'failed', message: e instanceof ApiError ? e.message : "Can't reach server" });
       },

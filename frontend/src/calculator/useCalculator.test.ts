@@ -19,21 +19,21 @@ describe('useCalculator', () => {
     await waitFor(() => expect(result.current.state.status).toBe('result'));
     expect(fn).toHaveBeenCalledTimes(1);
     expect((fn.mock.calls as unknown[][])[0]![0]).toBe('2 + 3');
-    expect(result.current.state.result).toBe(5);
+    expect(result.current.state).toMatchObject({ result: 5 });
   });
   it('shows ApiError message', async () => {
     const fn = vi.fn(async () => { throw new ApiError('DIVISION_BY_ZERO', 'Undefined'); });
     const { result } = renderHook(() => useCalculator(fn as unknown as Fn));
     press(result, d('2'), plus, d('3'), eq);
     await waitFor(() => expect(result.current.state.status).toBe('error'));
-    expect(result.current.state.message).toBe('Undefined');
+    expect(result.current.state).toMatchObject({ message: 'Undefined' });
   });
   it('non-ApiError maps to Can\'t reach server', async () => {
     const fn = vi.fn(async () => { throw new Error('boom'); });
     const { result } = renderHook(() => useCalculator(fn as unknown as Fn));
     press(result, d('2'), plus, d('3'), eq);
     await waitFor(() => expect(result.current.state.status).toBe('error'));
-    expect(result.current.state.message).toBe("Can't reach server");
+    expect(result.current.state).toMatchObject({ message: "Can't reach server" });
   });
   it('double = while pending calls once', async () => {
     const fn = vi.fn(() => new Promise<{ result: number }>(() => {}));
@@ -52,6 +52,6 @@ describe('useCalculator', () => {
     await act(async () => { resolvers[0]!({ result: 5 }); });
     expect(result.current.state.status).toBe('pending');
     await act(async () => { resolvers[1]!({ result: 8 }); });
-    expect(result.current.state.result).toBe(8);
+    expect(result.current.state).toMatchObject({ result: 8 });
   });
 });

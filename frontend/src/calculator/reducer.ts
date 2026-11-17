@@ -5,114 +5,107 @@ export type Action =
   | { type: 'digit'; digit: string } | { type: 'decimal' } | { type: 'operator'; op: Operator }
   | { type: 'sqrt' } | { type: 'percent' } | { type: 'negate' } | { type: 'backspace' }
   | { type: 'clear' } | { type: 'equals' }
-  | { type: 'resolved'; result: number; repeat?: string } | { type: 'failed'; message: string };
+  | { type: 'resolved'; result: number } | { type: 'failed'; message: string };
 
-export type CalcState = {
-  tokens: Token[];
-  status: 'editing' | 'pending' | 'result' | 'error';
-  request: string | null;
-  expressionLine: string;
-  result: number | null;
-  repeat: string | null;
-  message: string | null;
-};
+export type CalcState =
+  | { status: 'editing'; tokens: Token[] }
+  | { status: 'pending'; tokens: Token[]; request: string; expressionLine: string; repeat: Token[] | null }
+  | { status: 'result'; result: number; repeat: Token[] | null; expressionLine: string }
+  | { status: 'error'; message: string; expressionLine: string };
 
-export const initialState: CalcState = {
-  tokens: [], status: 'editing', request: null, expressionLine: '', result: null, repeat: null, message: null,
-};
+export const initialState: CalcState = { status: 'editing', tokens: [] };
 
 const MAX_LEN = 256;
 const blank = (digits = ''): NumberToken => ({ kind: 'number', digits, negative: false, sqrt: false, percent: false });
-const wrap = (n: number) => (n < 0 ? `(${n})` : String(n));
-
-// Repeat fragment is "<op> <operand>", e.g. "- (-3)", "+ sqrt 9", "+ 10%".
-const repeatDisplay = (r: string) =>
-  r.replace(/^[-*/]/, (c) => ({ '-': '−', '*': '×', '/': '÷' })[c]!)
-    .replace(/\(-([^)]+)\)/g, '−$1').replace(/sqrt /g, '√').replace(/ /g, '');
 
 export function mainLine(s: CalcState): string {
-  if (s.status === 'result') return String(s.result).replace(/^-/, '−');
-  if (s.status === 'error') return s.message ?? '';
-  return toDisplay(s.tokens) || '0';
+  switch (s.status) {
+    case 'result': return String(s.result).replace(/^-/, '−');
+    case 'error': return s.message;
+    default: return toDisplay(s.tokens) || '0';
+  }
 }
 
-// Replace the current number (last token if it is a number) or append a new one.
-function withNumber(tokens: Token[], f: (n: NumberToken | null) => NumberToken | null): Token[] {
-  const last = tokens[tokens.length - 1];
-  if (last?.kind === 'number') {
-    const n = f(last);
-    return n ? [...tokens.slice(0, -1), n] : tokens.slice(0, -1);
-  }
-  const n = f(null);
-  return n ? [...tokens, n] : tokens;
-}
+export const expressionLine = (s: CalcState): string => (s.status === 'editing' ? '' : s.expressionLine);
+
+const pending = (tokens: Token[], repeat: Token[] | null): CalcState =>
+  ({ status: 'pending', tokens, request: toApiExpression(tokens), expressionLine: toDisplay(tokens), repeat });
+
+// Keypad tokens never contain parentheses, so the last operator and everything after it is the repeat.
+const repeatOf = (tokens: Token[]): Token[] | null => {
+  const i = tokens.findLastIndex((t) => t.kind === 'operator');
+  return i < 0 ? null : tokens.slice(i);
+};
 
 export function reducer(state: CalcState, action: Action): CalcState {
   if (action.type === 'clear') return initialState;
   if (state.status === 'pending') {
-    if (action.type === 'resolved') {
-      return { ...state, status: 'result', request: null, result: action.result, repeat: action.repeat ?? null,
-        tokens: [numberTokenFrom(action.result)] };
-    }
-    if (action.type === 'failed') return { ...initialState, status: 'error', message: action.message, expressionLine: state.expressionLine };
+    if (action.type === 'resolved') return { status: 'result', result: action.result, repeat: state.repeat, expressionLine: state.expressionLine };
+    if (action.type === 'failed') return { status: 'error', message: action.message, expressionLine: state.expressionLine };
     return state;
   }
   if (action.type === 'resolved' || action.type === 'failed') return state;
-
   if (state.status === 'result') {
     if (action.type === 'backspace') return state;
-    if (action.type === 'equals') {
-      if (state.repeat === null || state.result === null) return state;
-      const request = `${wrap(state.result)} ${state.repeat}`;
-      return { ...state, status: 'pending', request, expressionLine: toDisplay([numberTokenFrom(state.result)]) + repeatDisplay(state.repeat) };
-    }
+    if (action.type === 'equals') return state.repeat ? pending([numberTokenFrom(state.result), ...state.repeat], state.repeat) : state;
   }
-  const base = state.status === 'error' ? initialState
-    : state.status === 'result' ? { ...initialState, tokens: action.type === 'digit' || action.type === 'decimal' ? [] : state.tokens }
-    : state;
-  const tokens = base.tokens;
+  if (state.status === 'editing' && action.type === 'equals') {
+    const last = state.tokens[state.tokens.length - 1];
+    return last?.kind === 'number' && last.digits !== '' ? pending(state.tokens, repeatOf(state.tokens)) : state;
+  }
+  const tokens = editTokens(startTokens(state, action), action);
+  return state.status === 'editing' && tokens === state.tokens ? state : { status: 'editing', tokens };
+}
+
+export function startTokens(state: CalcState, action: Action): Token[] {
+  if (state.status === 'editing') return state.tokens;
+  if (state.status === 'result') return action.type === 'digit' || action.type === 'decimal' ? [] : [numberTokenFrom(state.result)];
+  return [];
+}
+
+// Pure key edit; returns the same array when the key does nothing.
+export function editTokens(tokens: Token[], action: Action): Token[] {
+  const next = apply(tokens, action);
+  return toApiExpression(next).length > MAX_LEN ? tokens : next;
+}
+
+function apply(tokens: Token[], action: Action): Token[] {
   const last = tokens[tokens.length - 1];
   const num = last?.kind === 'number' ? last : null;
-  const edit = (next: Token[]): CalcState =>
-    toApiExpression(next).length > MAX_LEN ? base : { ...initialState, tokens: next };
+  const cur = num ?? blank();
+  // Replace the trailing number, or append when there is none; null drops the trailing number.
+  const setCurrent = (t: NumberToken | null): Token[] =>
+    [...(num ? tokens.slice(0, -1) : tokens), ...(t ? [t] : [])];
 
   switch (action.type) {
     case 'digit':
-      if (num?.percent) return base;
-      return edit(withNumber(tokens, (n) => (n ? { ...n, digits: n.digits === '0' ? action.digit : n.digits + action.digit } : blank(action.digit))));
+      if (num?.percent) return tokens;
+      return setCurrent({ ...cur, digits: cur.digits === '0' ? action.digit : cur.digits + action.digit });
     case 'decimal':
-      if (num?.percent || num?.digits.includes('.')) return base;
-      return edit(withNumber(tokens, (n) => (n ? { ...n, digits: (n.digits || '0') + '.' } : blank('0.'))));
+      if (num?.percent || num?.digits.includes('.')) return tokens;
+      return setCurrent({ ...cur, digits: (cur.digits || '0') + '.' });
     case 'operator': {
-      if (num && num.digits === '') return base;
+      if (num?.digits === '') return tokens;
       const opTok: Token = { kind: 'operator', op: action.op };
-      if (last?.kind === 'operator') return edit([...tokens.slice(0, -1), opTok]);
-      return edit([...(tokens.length ? tokens : [blank('0')]), opTok]);
+      if (last?.kind === 'operator') return [...tokens.slice(0, -1), opTok];
+      return [...(tokens.length ? tokens : [blank('0')]), opTok];
     }
     case 'sqrt':
-      if (num?.sqrt) return base;
-      return edit(withNumber(tokens, (n) => (n ? { ...n, sqrt: true } : { ...blank(), sqrt: true })));
+      return num?.sqrt ? tokens : setCurrent({ ...cur, sqrt: true });
     case 'percent':
-      if (!num || num.digits === '' || num.percent) return base;
-      return edit(withNumber(tokens, (n) => n && { ...n, percent: true }));
-    case 'negate':
-      return edit(withNumber(tokens, (n) => {
-        const t = n ? { ...n, negative: !n.negative } : { ...blank(), negative: true };
-        return t.digits === '' && !t.sqrt && !t.negative ? null : t;
-      }));
+      return !num || num.digits === '' || num.percent ? tokens : setCurrent({ ...num, percent: true });
+    case 'negate': {
+      const t = { ...cur, negative: !cur.negative };
+      return setCurrent(t.digits === '' && !t.sqrt && !t.negative ? null : t);
+    }
     case 'backspace': {
-      if (!last) return base;
-      if (!num) return edit(tokens.slice(0, -1));
-      return edit(withNumber(tokens, (n) => {
-        if (!n || n.digits.includes('e')) return null; // e-notation is atomic
-        const t = n.percent ? { ...n, percent: false } : { ...n, digits: n.digits.slice(0, -1) };
-        if (t.digits === '') t.sqrt = false;
-        return t.digits === '' ? null : t;
-      }));
+      if (!last) return tokens;
+      if (!num) return tokens.slice(0, -1);
+      if (num.digits.includes('e')) return setCurrent(null); // e-notation is atomic
+      const t = num.percent ? { ...num, percent: false } : { ...num, digits: num.digits.slice(0, -1) };
+      return setCurrent(t.digits === '' ? null : t);
     }
-    case 'equals': {
-      if (!last || last.kind === 'operator' || last.digits === '') return base === state ? base : { ...initialState };
-      return { ...base, status: 'pending', request: toApiExpression(tokens), expressionLine: toDisplay(tokens) };
-    }
+    default:
+      return tokens;
   }
 }

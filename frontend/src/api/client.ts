@@ -1,4 +1,4 @@
-export type EvaluateResult = { result: number; repeat?: string };
+export type EvaluateResult = { result: number };
 
 export class ApiError extends Error {
   code: string;
@@ -27,7 +27,7 @@ export async function evaluate(expression: string, fetchFn: typeof fetch = fetch
   }
   if (res.ok) {
     if (typeof body?.result !== 'number' || !Number.isFinite(body.result)) throw unreachable();
-    return typeof body.repeat === 'string' ? { result: body.result, repeat: body.repeat } : { result: body.result };
+    return { result: body.result };
   }
   const e = body?.error;
   if (typeof e?.code === 'string' && typeof e?.message === 'string') {
