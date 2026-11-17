@@ -27,7 +27,7 @@ The calculator is the vehicle. What the reviewer should remember is **the journe
 - Over-engineering: hexagonal layers, interfaces with one implementation, frameworks a calculator doesn't need.
 - Math logic split across two languages. The frontend never computes results.
 - A UI library or Tailwind standing in for the design system. The design system must be visibly ours.
-- A look that is a copy of any specific vendor's calculator. The *format* is familiar, but the visual identity is our own.
+- Copying another calculator app's look. The *format* is familiar (phone-calculator keypad), but the visual identity comes from Sezzle's brand (§5.3). Sezzle logo or trademark assets are not used, only its palette, typeface and UI patterns.
 
 ## 2. Repository layout
 
@@ -62,7 +62,7 @@ xʸ   √    %    ×
 0 (wide)  .
 ```
 
-- Digit keys are neutral. Function keys (`AC ⌫ ± xʸ √ %`) use a secondary neutral. Operator keys (`÷ × − +`) use a soft teal tint. **`=` is solid orange**, so it contrasts with the teal operators and is the one "do it" key.
+- Digit keys are neutral. Function keys (`AC ⌫ ± xʸ √ %`) use lavender (light) or a lighter aubergine (dark). Operator keys (`÷ × − +`) are Sezzle purple. **`=` is Sezzle mint** with dark text, the brand's call-to-action color, so it contrasts with the purple operators and is the one "do it" key (user decision, replacing an earlier orange).
 - The display shows two lines: the expression being typed (small, muted) and the result or current entry (large).
 - Mobile-first. On a phone, the calculator fills the viewport. On wider screens, it's a centered card. Keys are round, thumb-sized and at least 44×44 px.
 
@@ -259,7 +259,22 @@ frontend/src/
 
 - **Tokens** (CSS custom properties on `:root`): color (surface, key-digit, key-function, key-operator, key-equals, text, text-muted, error, focus ring), spacing scale, type scale (display large/small, key), radius (key, card), shadow.
 - **Themes:** the light values on `:root`, and the dark values when `prefers-color-scheme: dark` applies or `[data-theme="dark"]` is set. A manual toggle overrides the OS setting and is saved to `localStorage` (wrapped in try/catch).
-- **Accent:** the operator tint is teal, and `=` is solid orange. The text on each must meet WCAG AA (the mockup used `#d9480f` with white, about 4.6:1). Exact hex values are the builder's call within that rule.
+- **Brand (user decision): Sezzle.** Values were read from sezzle.com's stylesheet on 2026-11-16:
+
+  | Role | Light | Dark |
+  |---|---|---|
+  | Page surface | `#f8f8f8` | `#201733` |
+  | Calculator card | `#ffffff` | `#241b3b` |
+  | Text | `#201733` | `#f2e6ff` |
+  | Digit key | `#f8f8f8` | `#382757` |
+  | Function key | `#f2e6ff` | `#4a3570` (my call, a step lighter than `#382757`) |
+  | Operator key | `#8333d4` with `#ffffff` text (≈6.2:1) | same |
+  | `=` key | `#9ff4d9` with `#201733` text (≈13:1) | same |
+  | Error text | `#c2185b` (my call) | `#ff6b8a` (my call) |
+
+- **Typeface:** Satoshi (Sezzle's site font), weights 400/500/700, self-hosted as woff2 from Fontshare (free licence) with the fallback stack `-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`.
+- **Patterns from the site:** pill and circle shapes (`border-radius: 100px`), and in the dark theme, a soft purple radial glow behind the display plus a 1px `#8333d4` gradient hairline at the top of the card (from the site header). There are no hard drop shadows in dark. The light card gets a soft purple-tinted shadow (`rgba(46,28,82,0.18)`).
+- Reference mockup: `.superpowers/brainstorm/…/sezzle-theme.html` (not committed). The table above is the source of truth.
 
 ### 5.4 Responsiveness and accessibility
 
@@ -299,3 +314,4 @@ frontend/src/
 | Deployment | One multi-stage image + compose wrapper | Two services with nginx; both | Same origin, one image, and `docker compose up` stays the one-liner. |
 | Keypad | One six-row pad | Basic pad + collapsible fx row | Simplest to build and test, and it fits a phone. |
 | Division by zero display | `Undefined` | "Can't divide by zero" | User decision. |
+| Visual identity | Sezzle palette, Satoshi, pill keys; mint `=`, purple operators | Own neutral palette with teal operators + orange `=` | User decision: the calculator is for Sezzle, so it should feel like Sezzle. |
