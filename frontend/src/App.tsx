@@ -1,3 +1,5 @@
+import { CalculatorPage } from './pages/CalculatorPage'
+
 export default function App() {
-  return <main />
+  return <CalculatorPage />
 }

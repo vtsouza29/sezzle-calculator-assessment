@@ -1,4 +1,6 @@
 :root {
+  color-scheme: light;
+  --hairline-opacity: 0;
   --color-surface: #f8f8f8;
   --color-surface-card: #ffffff;
   --color-text: #201733;
@@ -49,6 +51,8 @@
     --color-key-function-text: #f2e6ff;
     --shadow-card: none;
     --color-glow: rgba(131, 51, 212, 0.45);
+    --hairline-opacity: 1;
+    color-scheme: dark;
   }
 }
 
@@ -65,4 +69,6 @@
     --color-key-function-text: #f2e6ff;
     --shadow-card: none;
     --color-glow: rgba(131, 51, 212, 0.45);
+    --hairline-opacity: 1;
+    color-scheme: dark;
 }
