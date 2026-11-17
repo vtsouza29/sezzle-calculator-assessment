@@ -2,6 +2,7 @@ package calc
 
 import (
 	"errors"
+	"math"
 	"testing"
 )
 
@@ -21,6 +22,7 @@ func TestLex(t *testing.T) {
 		{"1e21", []tk{{TokNumber, 1e21, 0}, {TokEOF, 0, 4}}},
 		{"1.5e-7", []tk{{TokNumber, 1.5e-7, 0}, {TokEOF, 0, 6}}},
 		{"1E+3", []tk{{TokNumber, 1000, 0}, {TokEOF, 0, 4}}},
+		{"1e999", []tk{{TokNumber, math.Inf(1), 0}, {TokEOF, 0, 5}}},
 		{"sqrt 9", []tk{{TokSqrt, 0, 0}, {TokNumber, 9, 5}, {TokEOF, 0, 6}}},
 		{"(-2)^2%", []tk{{TokLParen, 0, 0}, {TokMinus, 0, 1}, {TokNumber, 2, 2}, {TokRParen, 0, 3}, {TokCaret, 0, 4}, {TokNumber, 2, 5}, {TokPercent, 0, 6}, {TokEOF, 0, 7}}},
 		{"1.2.3", []tk{{TokNumber, 1.2, 0}, {TokNumber, 0.3, 3}, {TokEOF, 0, 5}}},

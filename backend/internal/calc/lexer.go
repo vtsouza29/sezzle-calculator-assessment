@@ -1,6 +1,7 @@
 package calc
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 )
@@ -72,7 +73,7 @@ func Lex(input string) ([]Token, error) {
 				}
 			}
 			v, err := strconv.ParseFloat(input[start:i], 64)
-			if err != nil && !strings.Contains(err.Error(), "range") {
+			if err != nil && !errors.Is(err, strconv.ErrRange) {
 				return nil, newError(CodeInvalidExpression, start)
 			}
 			toks = append(toks, Token{TokNumber, v, start})

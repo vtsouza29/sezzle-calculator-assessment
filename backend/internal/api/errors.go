@@ -28,6 +28,14 @@ var statusFor = map[calc.Code]int{
 	CodePayloadTooLarge:        413,
 }
 
+// status maps a code to its HTTP status, defaulting to 500 so WriteHeader never gets 0.
+func status(code calc.Code) int {
+	if s, ok := statusFor[code]; ok {
+		return s
+	}
+	return 500
+}
+
 type errBody struct {
 	Code     calc.Code `json:"code"`
 	Message  string    `json:"message"`
@@ -45,7 +53,7 @@ func writeErr(w http.ResponseWriter, status int, b errBody) {
 }
 
 func writeCodeErr(w http.ResponseWriter, code calc.Code, msg string) {
-	writeErr(w, statusFor[code], errBody{Code: code, Message: msg})
+	writeErr(w, status(code), errBody{Code: code, Message: msg})
 }
 
 func writeCalcErr(w http.ResponseWriter, err error) {
@@ -58,7 +66,7 @@ func writeCalcErr(w http.ResponseWriter, err error) {
 	if ce.Position >= 0 {
 		b.Position = &ce.Position
 	}
-	writeErr(w, statusFor[ce.Code], b)
+	writeErr(w, status(ce.Code), b)
 }
 
 func notFound(w http.ResponseWriter, _ *http.Request) {
