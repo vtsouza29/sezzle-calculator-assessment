@@ -1,0 +1,49 @@
+.key {
+  width: var(--key-size);
+  height: var(--key-size);
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  border-radius: var(--radius-key);
+  font-family: var(--font-family);
+  font-size: var(--font-size-key);
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 80ms ease-out;
+}
+
+.key:active {
+  transform: scale(0.96);
+}
+
+.key:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .key {
+    transition: none;
+  }
+}
+
+.digit {
+  background: var(--color-key-digit);
+  color: var(--color-key-digit-text);
+}
+
+.function {
+  background: var(--color-key-function);
+  color: var(--color-key-function-text);
+}
+
+.operator {
+  background: var(--color-key-operator);
+  color: var(--color-key-operator-text);
+}
+
+.equals {
+  background: var(--color-key-equals);
+  color: var(--color-key-equals-text);
+  font-weight: 700;
+}
