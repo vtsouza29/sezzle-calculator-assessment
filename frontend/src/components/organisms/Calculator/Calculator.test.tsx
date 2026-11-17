@@ -41,8 +41,12 @@ it('Enter on a focused key fires equals once and does not click the key', async 
   const u = userEvent.setup()
   render(<Calculator evaluateFn={fn} />)
   await u.keyboard('2+3')
-  screen.getByRole('button', { name: '7' }).focus()
+  const seven = screen.getByRole('button', { name: '7' })
+  const clicked = vi.fn()
+  seven.addEventListener('click', clicked)
+  seven.focus()
   await u.keyboard('{Enter}')
+  expect(clicked).not.toHaveBeenCalled()
   expect(fn).toHaveBeenCalledTimes(1)
   expect(fn).toHaveBeenCalledWith('2 + 3')
   expect(screen.getByText('2+3')).toBeInTheDocument()
@@ -62,4 +66,17 @@ it('ignores keys with modifiers', async () => {
   render(<Calculator evaluateFn={fn} />)
   await u.keyboard('{Control>}5{/Control}')
   expect(document.querySelector('[aria-live]')).toHaveTextContent('0')
+})
+
+it('Enter on the theme toggle toggles the theme and does not evaluate', async () => {
+  const fn = vi.fn().mockResolvedValue({ result: 5 })
+  const u = userEvent.setup()
+  render(<Calculator evaluateFn={fn} />)
+  await u.keyboard('2+3')
+  const before = document.documentElement.dataset.theme
+  const toggle = screen.getAllByRole('button').find((b) => !b.closest('[data-keypad]'))!
+  toggle.focus()
+  await u.keyboard('{Enter}')
+  expect(document.documentElement.dataset.theme).not.toBe(before)
+  expect(fn).not.toHaveBeenCalled()
 })

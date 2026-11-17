@@ -14,8 +14,12 @@ export function Calculator({ evaluateFn }: { evaluateFn?: typeof evaluate }) {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return
+      // Let the browser handle controls outside the keypad (e.g. ThemeToggle).
+      const t = e.target
+      if (t instanceof Element && t.closest('button, a, input, select, textarea') && !t.closest('[data-keypad]')) return
       const action = keyToAction(e.key)
       if (!action) return
+      if (e.repeat && action.type === 'equals') return
       e.preventDefault() // stops Enter from also clicking a focused key
       dispatch(action)
     }
