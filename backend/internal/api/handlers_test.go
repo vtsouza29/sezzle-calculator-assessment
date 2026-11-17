@@ -20,7 +20,7 @@ func TestAPI(t *testing.T) {
 		status                   int
 		want                     string
 	}{
-		{"expr repeat", "POST", ev, `{"expression":"2 + 3 * 4"}`, 200, `{"result":14,"repeat":"* 4"}`},
+		{"expr", "POST", ev, `{"expression":"2 + 3 * 4"}`, 200, `{"result":14}`},
 		{"expr plain", "POST", ev, `{"expression":"42"}`, 200, `{"result":42}`},
 		{"div zero", "POST", ev, `{"expression":"8 / 0"}`, 422, `{"error":{"code":"DIVISION_BY_ZERO","message":"Undefined"}}`},
 		{"syntax", "POST", ev, `{"expression":"2 + * 3"}`, 400, `{"error":{"code":"INVALID_EXPRESSION","message":"Invalid input","position":4}}`},

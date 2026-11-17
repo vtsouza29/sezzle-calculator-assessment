@@ -1,16 +1,11 @@
 package calc
 
-import (
-	"math"
-	"strings"
-)
-
 const MaxExpressionLength = 256
 
-type Result struct {
-	Value  float64
-	Repeat string
-}
+type Result struct{ Value float64 }
+
+// binaryOp names the operation for each left-associative binary token.
+var binaryOp = map[TokenKind]string{TokPlus: "add", TokMinus: "subtract", TokStar: "multiply", TokSlash: "divide"}
 
 // operand is a parsed value; pct/raw mark a bare `n%` so expr can apply the contextual rule.
 type operand struct {
@@ -19,12 +14,8 @@ type operand struct {
 }
 
 type parser struct {
-	toks     []Token
-	i        int
-	depth    int
-	repOp    int // position of the rightmost top-level binary operator
-	repEnd   int // position just past its right operand
-	hasRepOp bool
+	toks []Token
+	i    int
 }
 
 func (p *parser) peek() Token { return p.toks[p.i] }
@@ -37,42 +28,28 @@ func (p *parser) next() Token {
 
 func (p *parser) fail() error { return newError(CodeInvalidExpression, p.peek().Pos) }
 
-// record notes a top-level binary operator; the largest opPos wins because
-// lower-precedence operators are recorded after higher ones.
-func (p *parser) record(opPos int) {
-	if p.depth == 0 && (!p.hasRepOp || opPos > p.repOp) {
-		p.hasRepOp, p.repOp, p.repEnd = true, opPos, p.peek().Pos
-	}
-}
-
 func (p *parser) expr() (operand, error) {
 	left, err := p.term()
 	if err != nil {
 		return left, err
 	}
 	for k := p.peek().Kind; k == TokPlus || k == TokMinus; k = p.peek().Kind {
-		op := p.next()
+		p.next()
 		right, err := p.term()
 		if err != nil {
 			return left, err
 		}
 		if right.pct {
-			if right.v, err = Apply("multiply", left.v, right.raw); err == nil {
-				right.v, err = Apply("percent", right.v)
+			if right.v, err = apply("multiply", left.v, right.raw); err == nil {
+				right.v, err = apply("percent", right.v)
 			}
 			if err != nil {
 				return left, err
 			}
 		}
-		p.record(op.Pos)
-		name := "add"
-		if k == TokMinus {
-			name = "subtract"
-		}
-		if left.v, err = Apply(name, left.v, right.v); err != nil {
+		if left.v, err = apply(binaryOp[k], left.v, right.v); err != nil {
 			return left, err
 		}
-		left.pct = false
 	}
 	return left, nil
 }
@@ -83,17 +60,12 @@ func (p *parser) term() (operand, error) {
 		return left, err
 	}
 	for k := p.peek().Kind; k == TokStar || k == TokSlash; k = p.peek().Kind {
-		op := p.next()
+		p.next()
 		right, err := p.unary()
 		if err != nil {
 			return left, err
 		}
-		p.record(op.Pos)
-		name := "multiply"
-		if k == TokSlash {
-			name = "divide"
-		}
-		if left.v, err = Apply(name, left.v, right.v); err != nil {
+		if left.v, err = apply(binaryOp[k], left.v, right.v); err != nil {
 			return left, err
 		}
 		left.pct = false
@@ -115,13 +87,12 @@ func (p *parser) power() (operand, error) {
 	if err != nil || p.peek().Kind != TokCaret {
 		return base, err
 	}
-	op := p.next()
+	p.next()
 	exp, err := p.unary()
 	if err != nil {
 		return base, err
 	}
-	p.record(op.Pos)
-	v, err := Apply("power", base.v, exp.v)
+	v, err := apply("power", base.v, exp.v)
 	return operand{v: v}, err
 }
 
@@ -134,7 +105,7 @@ func (p *parser) prefix() (operand, error) {
 	if err != nil {
 		return o, err
 	}
-	v, err := Apply("sqrt", o.v)
+	v, err := apply("sqrt", o.v)
 	return operand{v: v}, err
 }
 
@@ -144,7 +115,7 @@ func (p *parser) postfix() (operand, error) {
 		return o, err
 	}
 	p.next()
-	v, err := Apply("percent", o.v)
+	v, err := apply("percent", o.v)
 	return operand{v: v, raw: o.v, pct: true}, err
 }
 
@@ -155,9 +126,7 @@ func (p *parser) primary() (operand, error) {
 		return operand{v: t.Value}, nil
 	case TokLParen:
 		p.next()
-		p.depth++
 		o, err := p.expr()
-		p.depth--
 		if err != nil {
 			return o, err
 		}
@@ -170,8 +139,7 @@ func (p *parser) primary() (operand, error) {
 	return operand{}, p.fail()
 }
 
-// Evaluate parses and evaluates expr, returning the rounded value and the
-// repeat fragment (last top-level binary operator plus its right operand).
+// Evaluate parses and evaluates expr, returning the rounded value.
 func Evaluate(expr string) (Result, error) {
 	if len(expr) > MaxExpressionLength {
 		return Result{}, newError(CodeExpressionTooLong, -1)
@@ -188,16 +156,7 @@ func Evaluate(expr string) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	// A bare literal such as 1e999 never passes through Apply.
-	if math.IsInf(o.v, 0) {
-		return Result{}, newError(CodeOverflow, -1)
-	}
-	if math.IsNaN(o.v) {
-		return Result{}, newError(CodeInvalidOperation, -1)
-	}
-	res := Result{Value: Round(o.v)}
-	if p.hasRepOp {
-		res.Repeat = expr[p.repOp:p.repOp+1] + " " + strings.TrimSpace(expr[p.repOp+1:p.repEnd])
-	}
-	return res, nil
+	// A bare literal such as 1e999 never passes through apply.
+	v, err := finite(o.v)
+	return Result{Value: round(v)}, err
 }

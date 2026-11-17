@@ -40,11 +40,7 @@ func evaluate(w http.ResponseWriter, r *http.Request) {
 		writeCalcErr(w, err)
 		return
 	}
-	out := struct {
-		Result float64 `json:"result"`
-		Repeat string  `json:"repeat,omitempty"`
-	}{res.Value, res.Repeat}
-	writeJSON(w, 200, out)
+	writeJSON(w, 200, map[string]float64{"result": res.Value})
 }
 
 func operation(w http.ResponseWriter, r *http.Request) {
@@ -54,12 +50,12 @@ func operation(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &req) {
 		return
 	}
-	v, err := calc.Apply(chi.URLParam(r, "name"), req.Operands...)
+	res, err := calc.Operate(chi.URLParam(r, "name"), req.Operands...)
 	if err != nil {
 		writeCalcErr(w, err)
 		return
 	}
-	writeJSON(w, 200, map[string]float64{"result": calc.Round(v)})
+	writeJSON(w, 200, map[string]float64{"result": res.Value})
 }
 
 func healthz(w http.ResponseWriter, _ *http.Request) {

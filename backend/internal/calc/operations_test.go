@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestApply(t *testing.T) {
+func TestOperate(t *testing.T) {
 	tests := []struct {
 		name string
 		op   string
@@ -27,13 +27,14 @@ func TestApply(t *testing.T) {
 		{"sqrt", "sqrt", []float64{9}, 3, ""},
 		{"sqrt negative", "sqrt", []float64{-4}, 0, CodeInvalidOperation},
 		{"percent", "percent", []float64{50}, 0.5, ""},
+		{"rounds", "add", []float64{0.1, 0.2}, 0.3, ""},
 		{"overflow", "multiply", []float64{1e308, 10}, 0, CodeOverflow},
 		{"unknown op", "modulo", []float64{1, 2}, 0, CodeUnknownOperation},
 		{"wrong arity", "add", []float64{1}, 0, CodeInvalidOperands},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := Apply(tc.op, tc.args...)
+			got, err := Operate(tc.op, tc.args...)
 			if tc.code != "" {
 				var ce *Error
 				if !errors.As(err, &ce) || ce.Code != tc.code {
@@ -41,7 +42,7 @@ func TestApply(t *testing.T) {
 				}
 				return
 			}
-			if err != nil || got != tc.want {
+			if err != nil || got.Value != tc.want {
 				t.Fatalf("got %v, %v; want %v", got, err, tc.want)
 			}
 		})
@@ -49,16 +50,16 @@ func TestApply(t *testing.T) {
 }
 
 func TestRound(t *testing.T) {
-	if Round(0.1+0.2) != 0.3 {
+	if round(0.1+0.2) != 0.3 {
 		t.Error("0.1+0.2")
 	}
-	if Round(1.0/3) != 0.333333333333333 {
+	if round(1.0/3) != 0.333333333333333 {
 		t.Error("1/3")
 	}
-	if math.Signbit(Round(math.Copysign(0, -1))) {
+	if math.Signbit(round(math.Copysign(0, -1))) {
 		t.Error("negative zero")
 	}
-	if Round(1e21) != 1e21 {
+	if round(1e21) != 1e21 {
 		t.Error("1e21")
 	}
 }
