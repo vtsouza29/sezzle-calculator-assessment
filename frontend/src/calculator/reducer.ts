@@ -31,7 +31,7 @@ const repeatDisplay = (r: string) =>
     .replace(/\(-([^)]+)\)/g, '−$1').replace(/sqrt /g, '√').replace(/ /g, '');
 
 export function mainLine(s: CalcState): string {
-  if (s.status === 'result') return String(s.result);
+  if (s.status === 'result') return String(s.result).replace(/^-/, '−');
   if (s.status === 'error') return s.message ?? '';
   return toDisplay(s.tokens) || '0';
 }
@@ -54,7 +54,7 @@ export function reducer(state: CalcState, action: Action): CalcState {
       return { ...state, status: 'result', request: null, result: action.result, repeat: action.repeat ?? null,
         tokens: [numberTokenFrom(action.result)] };
     }
-    if (action.type === 'failed') return { ...initialState, status: 'error', message: action.message };
+    if (action.type === 'failed') return { ...initialState, status: 'error', message: action.message, expressionLine: state.expressionLine };
     return state;
   }
   if (action.type === 'resolved' || action.type === 'failed') return state;
@@ -104,7 +104,7 @@ export function reducer(state: CalcState, action: Action): CalcState {
       if (!last) return base;
       if (!num) return edit(tokens.slice(0, -1));
       return edit(withNumber(tokens, (n) => {
-        if (!n) return null;
+        if (!n || n.digits.includes('e')) return null; // e-notation is atomic
         const t = n.percent ? { ...n, percent: false } : { ...n, digits: n.digits.slice(0, -1) };
         if (t.digits === '') t.sqrt = false;
         return t.digits === '' ? null : t;

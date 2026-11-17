@@ -26,6 +26,14 @@ describe('ThemeToggle', () => {
     expect(screen.getByRole('button', { name: 'Switch to light theme' })).toBeInTheDocument()
   })
 
+  it('leaves data-theme unset until the user chooses, and labels from the OS theme', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true }))
+    render(<ThemeToggle />)
+    expect(document.documentElement.dataset.theme).toBeUndefined()
+    expect(screen.getByRole('button', { name: 'Switch to light theme' })).toBeInTheDocument()
+    vi.unstubAllGlobals()
+  })
+
   it('still toggles when localStorage throws', async () => {
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('denied')

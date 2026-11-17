@@ -1,26 +1,32 @@
-import { useEffect, useState } from 'react'
+import { useLayoutEffect, useState } from 'react'
 import styles from './ThemeToggle.module.css'
 
 type Theme = 'light' | 'dark'
 
-function initialTheme(): Theme {
+function storedTheme(): Theme | null {
   try {
     const stored = localStorage.getItem('theme')
     if (stored === 'light' || stored === 'dark') return stored
   } catch {
-    // storage unavailable: fall through to OS preference
+    // storage unavailable: fall back to OS preference
   }
-  const prefersDark =
-    typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches
-  return prefersDark ? 'dark' : 'light'
+  return null
+}
+
+function osTheme(): Theme {
+  return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches
+    ? 'dark'
+    : 'light'
 }
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>(initialTheme)
+  // null = no explicit choice yet, so data-theme stays unset and CSS follows the OS live.
+  const [choice, setChoice] = useState<Theme | null>(storedTheme)
+  const theme = choice ?? osTheme()
 
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme
-  }, [theme])
+  useLayoutEffect(() => {
+    if (choice) document.documentElement.dataset.theme = choice
+  }, [choice])
 
   const next: Theme = theme === 'dark' ? 'light' : 'dark'
   const toggle = () => {
@@ -29,7 +35,7 @@ export function ThemeToggle() {
     } catch {
       // persistence is best-effort
     }
-    setTheme(next)
+    setChoice(next)
   }
 
   return (

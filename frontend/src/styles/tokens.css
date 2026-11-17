@@ -34,7 +34,8 @@
 
   --radius-key: 100px;
   --radius-card: 28px;
-  --key-size: clamp(44px, 17vw, 76px);
+  --size-touch: 44px;
+  --key-size: clamp(var(--size-touch), 17vw, 76px);
 }
 
 @media (prefers-color-scheme: dark) {

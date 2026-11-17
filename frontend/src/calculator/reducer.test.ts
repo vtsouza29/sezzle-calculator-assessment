@@ -151,6 +151,7 @@ describe('errors', () => {
     expect(e.request).toBeNull();
     expect(mainLine(e)).toBe('Undefined');
   });
+  it('keeps the evaluated expression above the message', () => expect(e.expressionLine).toBe('1÷0'));
   it('next digit starts fresh', () => {
     const s = reducer(e, { type: 'digit', digit: '5' });
     expect(mainLine(s)).toBe('5');
@@ -187,5 +188,14 @@ describe('result and error status keys', () => {
     expect(reducer(e, bs)).toEqual(initialState);
     expect(reducer(e, pct)).toEqual(initialState);
     expect(mainLine(reducer(e, sqrt))).toBe('√');
+  });
+});
+
+describe('display polish', () => {
+  it('renders a negative result with a real minus sign', () => {
+    expect(mainLine(press(...d('2'), op('-'), ...d('7'), eq, resolved(-5)))).toBe('−5');
+  });
+  it('backspace deletes a carried-over e-notation token whole', () => {
+    expect(press(...d('1'), eq, resolved(1e21), op('*'), bs, bs).tokens).toEqual([]);
   });
 });
