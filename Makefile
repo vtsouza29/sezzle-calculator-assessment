@@ -12,6 +12,7 @@ coverage:
 		rm coverage.out
 	cd frontend && npm run test:coverage
 	cp -R frontend/coverage/. docs/coverage/frontend/
+	sed -i.bak "s#$(CURDIR)/##g" docs/coverage/frontend/coverage-summary.json && rm docs/coverage/frontend/coverage-summary.json.bak
 
 dev-backend:
 	cd backend && go run ./cmd/server

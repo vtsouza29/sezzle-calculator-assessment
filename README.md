@@ -36,9 +36,9 @@ make coverage   # also writes reports to docs/coverage/
 
 | Area | Statements | Branches | Functions | Lines | Report |
 |---|---|---|---|---|---|
-| Backend `internal/calc` (math) | 94.9% | | | | [func list](docs/coverage/backend/coverage.txt), [HTML](docs/coverage/backend/coverage.html) |
-| Backend `internal/api` (HTTP) | 97.0% | | | | (same) |
-| Backend total (excl. `cmd/server` wiring) | 83.1%* | | | | (same) |
+| Backend `internal/calc` (math) | 94.9% | n/a (Go reports statements) | n/a | n/a | [func list](docs/coverage/backend/coverage.txt), [HTML](docs/coverage/backend/coverage.html) |
+| Backend `internal/api` (HTTP) | 97.0% | n/a | n/a | n/a | (same) |
+| Backend total (all packages) | 83.1%* | n/a | n/a | n/a | (same) |
 | Frontend | 97.87% | 94.23% | 100% | 99.3% | [HTML](docs/coverage/frontend/index.html) |
 
 \*The backend total is over all packages, including `cmd/server/main.go` (process wiring, deliberately not unit-tested, 0%). The spec's target was at least 90% on `internal/calc`. Open the HTML reports locally; GitHub shows them as source.
@@ -125,7 +125,7 @@ The workflow is part of the deliverable. It was AI-assisted (Claude Code with th
 2. **Brainstorming and grilling**: the design was explored interactively, then stress-tested question by question until every behavior (key rules, percent semantics, error copy, API shape) was decided or explicitly marked as a call.
 3. **[Spec](docs/superpowers/specs/2026-11-16-calculator-design.md)**: goals, anti-goals, behavior, API, grammar, design system, and a decision log.
 4. **[Plan](docs/superpowers/plans/2026-11-16-calculator.md)**: 15 small test-first tasks (14 build tasks plus a final review), each with files, steps and acceptance checks. A pre-flight scan checked every task's inputs against the previous task's outputs before any code was written.
-5. **TDD implementation, one task per commit**: each task was implemented by a fresh subagent (red, green, refactor), then gated by an independent reviewer who had not seen the implementer's reasoning. Nothing moved on until the review was clean. See `git log --oneline` for the Conventional Commit history.
+5. **TDD implementation, one or more commits per task** (fix rounds add commits): each task was implemented by a fresh subagent (red, green, refactor), then gated by an independent reviewer who had not seen the implementer's reasoning. Nothing moved on until the review was clean. See `git log --oneline` for the Conventional Commit history.
 6. **Final review** (task 15) of the whole branch.
 
 What the per-task reviews caught (fixed before moving on):
@@ -137,7 +137,7 @@ What the per-task reviews caught (fixed before moving on):
 | 11 (Calculator) | Global `Enter` handling hijacked the theme toggle (an a11y bug); a test that did not prove what it claimed, fixed and verified by mutation. |
 | 12 (Docker) | `.dockerignore` patterns did not match nested paths, leaking host `node_modules` into the build context. |
 
-Minor review findings that were not worth a fix round were logged and deferred rather than dropped.
+Minor review findings that were not worth a fix round were logged and triaged in the final whole-branch review rather than dropped.
 
 ## Out of scope / next steps
 
