@@ -1,0 +1,336 @@
+openapi: 3.1.0
+info:
+  title: Calculator API
+  version: 1.0.0
+  description: |
+    Stateless calculator API. Results are rounded to 15 significant digits
+    and negative zero is normalised to `0`. Infinity and NaN are never
+    serialised; they surface as `OVERFLOW` and `INVALID_OPERATION`.
+
+    Request bodies are limited to 4096 bytes and unknown JSON fields are
+    rejected with `INVALID_JSON`. Wire operators are ASCII: `+ - * / ^ %`,
+    `sqrt` and parentheses.
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: http://localhost:8080
+    description: Local development
+security: []
+tags:
+  - name: Calculator
+    description: Expression evaluation and single operations.
+  - name: Health
+    description: Liveness probe.
+paths:
+  /api/v1/evaluate:
+    post:
+      tags: [Calculator]
+      operationId: evaluateExpression
+      summary: Evaluate an expression
+      description: |
+        Evaluates an infix expression. `repeat` is the last top-level binary
+        operator plus its right operand (e.g. `* 4`), which clients can append
+        to the result to implement a repeated `=`. It is omitted when the
+        expression has no top-level binary operator.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EvaluateRequest'
+            examples:
+              precedence:
+                summary: Operator precedence
+                value: { expression: 2 + 3 * 4 }
+              percent:
+                summary: Percent relative to the left operand
+                value: { expression: 200 + 10% }
+      responses:
+        '200':
+          description: Expression evaluated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluateResponse'
+              examples:
+                precedence:
+                  value: { result: 14, repeat: '* 4' }
+                percent:
+                  value: { result: 220, repeat: + 10% }
+                literal:
+                  summary: No top-level binary operator, so no repeat
+                  value: { result: 42 }
+        '400':
+          description: Malformed JSON, invalid or too-long expression.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                INVALID_JSON:
+                  $ref: '#/components/examples/InvalidJson'
+                INVALID_EXPRESSION:
+                  $ref: '#/components/examples/InvalidExpression'
+                EXPRESSION_TOO_LONG:
+                  $ref: '#/components/examples/ExpressionTooLong'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          description: The expression is well formed but cannot be evaluated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                DIVISION_BY_ZERO:
+                  $ref: '#/components/examples/DivisionByZero'
+                INVALID_OPERATION:
+                  $ref: '#/components/examples/InvalidOperation'
+                OVERFLOW:
+                  $ref: '#/components/examples/Overflow'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+  /api/v1/operations/{op}:
+    post:
+      tags: [Calculator]
+      operationId: applyOperation
+      summary: Apply a single operation to operands
+      description: |
+        `add`, `subtract`, `multiply`, `divide` and `power` take exactly two
+        operands; `sqrt` and `percent` (`x / 100`) take exactly one.
+      parameters:
+        - name: op
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/OperationName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperationRequest'
+            examples:
+              divide:
+                value: { operands: [10, 4] }
+              sqrt:
+                value: { operands: [81] }
+      responses:
+        '200':
+          description: Operation applied.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResponse'
+              examples:
+                divide:
+                  value: { result: 2.5 }
+        '400':
+          description: Malformed JSON or wrong number of operands.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                INVALID_JSON:
+                  $ref: '#/components/examples/InvalidJson'
+                INVALID_OPERANDS:
+                  $ref: '#/components/examples/InvalidOperands'
+        '404':
+          description: |
+            The operation name is not supported (`UNKNOWN_OPERATION`). This
+            check runs before operand validation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                UNKNOWN_OPERATION:
+                  $ref: '#/components/examples/UnknownOperation'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          description: The operands cannot be computed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                DIVISION_BY_ZERO:
+                  $ref: '#/components/examples/DivisionByZero'
+                INVALID_OPERATION:
+                  summary: NaN result, e.g. sqrt of a negative number
+                  value:
+                    error: { code: INVALID_OPERATION, message: Invalid input }
+                OVERFLOW:
+                  $ref: '#/components/examples/Overflow'
+  /healthz:
+    get:
+      tags: [Health]
+      operationId: getHealth
+      summary: Liveness probe
+      responses:
+        '200':
+          description: Service is up.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              examples:
+                ok:
+                  value: { status: ok }
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+components:
+  schemas:
+    EvaluateRequest:
+      type: object
+      additionalProperties: false
+      required: [expression]
+      properties:
+        expression:
+          type: string
+          maxLength: 256
+          description: Infix expression using ASCII operators. Length is measured in bytes.
+          examples: ['2 + 3 * 4']
+    EvaluateResponse:
+      type: object
+      required: [result]
+      properties:
+        result:
+          type: number
+          description: Result rounded to 15 significant digits.
+        repeat:
+          type: string
+          description: Last top-level binary operator and its right operand.
+          examples: ['* 4']
+    OperationName:
+      type: string
+      enum: [add, subtract, multiply, divide, power, sqrt, percent]
+    OperationRequest:
+      type: object
+      additionalProperties: false
+      required: [operands]
+      properties:
+        operands:
+          type: array
+          minItems: 1
+          maxItems: 2
+          items:
+            type: number
+          description: Two numbers, or one for `sqrt` and `percent`.
+    OperationResponse:
+      type: object
+      required: [result]
+      properties:
+        result:
+          type: number
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          const: ok
+    ErrorCode:
+      type: string
+      enum:
+        - INVALID_JSON
+        - INVALID_EXPRESSION
+        - EXPRESSION_TOO_LONG
+        - INVALID_OPERANDS
+        - UNKNOWN_OPERATION
+        - NOT_FOUND
+        - METHOD_NOT_ALLOWED
+        - PAYLOAD_TOO_LARGE
+        - DIVISION_BY_ZERO
+        - INVALID_OPERATION
+        - OVERFLOW
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              $ref: '#/components/schemas/ErrorCode'
+            message:
+              type: string
+              description: Display copy, e.g. `Undefined`, `Overflow`, `Invalid input`.
+            position:
+              type: integer
+              minimum: 0
+              description: Zero-based byte offset of the offending token. Only set for `INVALID_EXPRESSION`.
+  responses:
+    PayloadTooLarge:
+      description: Request body exceeds 4096 bytes.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            PAYLOAD_TOO_LARGE:
+              $ref: '#/components/examples/PayloadTooLarge'
+    NotFound:
+      description: Unknown path. Also returned for any unmatched `/api/` path.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            NOT_FOUND:
+              $ref: '#/components/examples/NotFound'
+    MethodNotAllowed:
+      description: HTTP method not supported on this path.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            METHOD_NOT_ALLOWED:
+              $ref: '#/components/examples/MethodNotAllowed'
+  examples:
+    InvalidJson:
+      summary: Malformed body, wrong types or unknown fields
+      value:
+        error: { code: INVALID_JSON, message: Invalid input }
+    InvalidExpression:
+      summary: Syntax error at a byte offset
+      value:
+        error: { code: INVALID_EXPRESSION, message: Invalid input, position: 4 }
+    ExpressionTooLong:
+      value:
+        error: { code: EXPRESSION_TOO_LONG, message: Invalid input }
+    InvalidOperands:
+      summary: Wrong operand count for the operation
+      value:
+        error: { code: INVALID_OPERANDS, message: Invalid input }
+    UnknownOperation:
+      value:
+        error: { code: UNKNOWN_OPERATION, message: Unknown operation }
+    NotFound:
+      value:
+        error: { code: NOT_FOUND, message: Not found }
+    MethodNotAllowed:
+      value:
+        error: { code: METHOD_NOT_ALLOWED, message: Method not allowed }
+    PayloadTooLarge:
+      value:
+        error: { code: PAYLOAD_TOO_LARGE, message: Invalid input }
+    DivisionByZero:
+      value:
+        error: { code: DIVISION_BY_ZERO, message: Undefined }
+    InvalidOperation:
+      summary: NaN result
+      value:
+        error: { code: INVALID_OPERATION, message: Invalid input }
+    Overflow:
+      value:
+        error: { code: OVERFLOW, message: Overflow }
