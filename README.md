@@ -7,7 +7,7 @@ A full-stack calculator: a Go REST API that owns all the math, and a React + Typ
   <img src="docs/screenshot-dark.png" alt="Calculator, dark theme" width="45%">
 </p>
 
-Highlights: `+ − × ÷ ^ √ % ±`, correct precedence, contextual percent (`200 + 10%` = `220`), repeat-`=`, full keyboard support, light/dark theme, structured errors, tested on both sides (Go stdlib tests, 113 Vitest tests), one-command Docker run.
+Highlights: `+ − × ÷ ^ √ % ±`, correct precedence, contextual percent (`200 + 10%` = `220`), repeat-`=`, full keyboard support, light/dark theme, structured errors, tested on both sides (Go stdlib tests, 114 Vitest tests), one-command Docker run.
 
 ## Quick start
 
@@ -39,7 +39,7 @@ make coverage   # also writes reports to docs/coverage/
 | Backend `internal/calc` (math) | 95.0% | n/a (Go reports statements) | n/a | n/a | [func list](docs/coverage/backend/coverage.txt), [HTML](docs/coverage/backend/coverage.html) |
 | Backend `internal/api` (HTTP) | 98.5% | n/a | n/a | n/a | (same) |
 | Backend total (all packages) | 82.8%* | n/a | n/a | n/a | (same) |
-| Frontend | 98.37% | 97% | 100% | 99.31% | [HTML](docs/coverage/frontend/index.html) |
+| Frontend | 98.41% | 97.04% | 100% | 99.32% | [HTML](docs/coverage/frontend/index.html) |
 
 \*The backend total is over all packages, including `cmd/server/main.go` (process wiring, deliberately not unit-tested, 0%). The spec's target was at least 90% on `internal/calc`. Open the HTML reports locally; GitHub shows them as source.
 
@@ -66,6 +66,24 @@ curl -X POST localhost:8080/api/v1/evaluate -d '{"expression":"2 + * 3"}'
 ```
 
 Operations: `add subtract multiply divide power` (two operands), `sqrt percent` (one). `GET /healthz` returns `{"status":"ok"}`.
+
+## Requirements coverage
+
+| Brief item | Where it lives |
+|---|---|
+| Operations: `+ − × ÷` | `backend/internal/calc/operations.go`; keys in `frontend/src/components/organisms/Keypad` |
+| Optional: `^`, `√`, `%` | Same op table; contextual `%` in `calc/parser.go` (see Design decisions) |
+| Intuitive UI | `Calculator`, `Keypad`, `Display` components; full keyboard support (`calculator/keyboard.ts`); light/dark theme |
+| Input validation and error handling | Frontend blocks invalid sequences and caps input at 256 chars (`calculator/reducer.ts`); the backend validates everything, as the trust boundary (`internal/calc`, `internal/api`); errors shown in the display |
+| Responsive, basic mobile support | Mobile-first layout, keys at least 44px, checked at 375px with no horizontal scroll (`docs/screenshot-*.png`) |
+| REST endpoints | See [API](#api) and `openapi.yaml` |
+| Validation and edge cases | Division by zero, bad syntax, unknown operation, wrong arity: typed errors mapped to 400/404/422 (`internal/api/errors.go`) |
+| JSON results | `{"result": ...}` on success, structured `{"error":{"code","message"}}` otherwise (see [API](#api)) |
+| Clean, idiomatic code | Atomic-design components, pure reducer, hand-written parser; see Project structure |
+| Unit tests, both layers | Go stdlib tests beside the code; Vitest + Testing Library (see Tests and coverage) |
+| Documentation | This README: setup, API examples, design decisions; `openapi.yaml` |
+| Optional: Dockerfile | `Dockerfile` (multi-stage) and `docker-compose.yml` |
+| Deliverables: repo, README, tests and coverage report | This repo; `docs/coverage/` (HTML and text reports) |
 
 ## Design decisions
 
