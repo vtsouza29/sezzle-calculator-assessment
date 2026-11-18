@@ -48,6 +48,9 @@ describe('equals', () => {
     expect(s).toMatchObject({ status: 'pending', request: '14 * 4' });
     expect(expressionLine(s)).toBe('14×4');
   });
+  it('shows the full repeat expression on the main line while pending', () => {
+    expect(line(...d('5'), op('+'), ...d('5'), eq, resolved(10), eq)).toBe('10+5');
+  });
   it('wraps a negative result in parentheses', () => {
     expect(request(press(...d('1'), op('^'), ...d('2'), eq, resolved(-2), eq))).toBe('(-2) ^ 2');
   });

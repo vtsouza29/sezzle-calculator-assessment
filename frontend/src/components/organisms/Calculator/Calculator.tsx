@@ -14,8 +14,8 @@ export function Calculator({ evaluateFn }: { evaluateFn?: typeof evaluate }) {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return
-      // Only a keyboard-focused button reaches here with Enter/Space (clicks never focus); let it activate natively.
-      if ((e.key === 'Enter' || e.key === ' ') && e.target instanceof HTMLButtonElement) return
+      // Only a keyboard-focused button reaches here with Enter (clicks never focus); let it activate natively.
+      if (e.key === 'Enter' && e.target instanceof HTMLButtonElement) return
       const action = keyToAction(e.key)
       if (!action) return
       if (e.repeat && action.type === 'equals') return

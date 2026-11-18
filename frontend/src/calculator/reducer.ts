@@ -57,14 +57,14 @@ export function reducer(state: CalcState, action: Action): CalcState {
   return state.status === 'editing' && tokens === state.tokens ? state : { status: 'editing', tokens };
 }
 
-export function startTokens(state: CalcState, action: Action): Token[] {
+function startTokens(state: CalcState, action: Action): Token[] {
   if (state.status === 'editing') return state.tokens;
   if (state.status === 'result') return action.type === 'digit' || action.type === 'decimal' ? [] : [numberTokenFrom(state.result)];
   return [];
 }
 
 // Pure key edit; returns the same array when the key does nothing.
-export function editTokens(tokens: Token[], action: Action): Token[] {
+function editTokens(tokens: Token[], action: Action): Token[] {
   const next = apply(tokens, action);
   return toApiExpression(next).length > MAX_LEN ? tokens : next;
 }
