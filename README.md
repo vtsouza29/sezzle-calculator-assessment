@@ -7,7 +7,7 @@ A full-stack calculator: a Go REST API that owns all the math, and a React + Typ
   <img src="docs/screenshot-dark.png" alt="Calculator, dark theme" width="45%">
 </p>
 
-Highlights: `+ − × ÷ ^ √ % ±`, correct precedence, contextual percent (`200 + 10%` = `220`), repeat-`=`, full keyboard support, light/dark theme, structured errors, tested on both sides (Go stdlib tests, 105 Vitest tests), one-command Docker run.
+Highlights: `+ − × ÷ ^ √ % ±`, correct precedence, contextual percent (`200 + 10%` = `220`), repeat-`=`, full keyboard support, light/dark theme, structured errors, tested on both sides (Go stdlib tests, 113 Vitest tests), one-command Docker run.
 
 ## Quick start
 
@@ -36,10 +36,10 @@ make coverage   # also writes reports to docs/coverage/
 
 | Area | Statements | Branches | Functions | Lines | Report |
 |---|---|---|---|---|---|
-| Backend `internal/calc` (math) | 94.9% | n/a (Go reports statements) | n/a | n/a | [func list](docs/coverage/backend/coverage.txt), [HTML](docs/coverage/backend/coverage.html) |
-| Backend `internal/api` (HTTP) | 97.1% | n/a | n/a | n/a | (same) |
-| Backend total (all packages) | 83.3%* | n/a | n/a | n/a | (same) |
-| Frontend | 98.45% | 95.41% | 100% | 99.32% | [HTML](docs/coverage/frontend/index.html) |
+| Backend `internal/calc` (math) | 95.0% | n/a (Go reports statements) | n/a | n/a | [func list](docs/coverage/backend/coverage.txt), [HTML](docs/coverage/backend/coverage.html) |
+| Backend `internal/api` (HTTP) | 98.5% | n/a | n/a | n/a | (same) |
+| Backend total (all packages) | 82.8%* | n/a | n/a | n/a | (same) |
+| Frontend | 98.37% | 97% | 100% | 99.31% | [HTML](docs/coverage/frontend/index.html) |
 
 \*The backend total is over all packages, including `cmd/server/main.go` (process wiring, deliberately not unit-tested, 0%). The spec's target was at least 90% on `internal/calc`. Open the HTML reports locally; GitHub shows them as source.
 
@@ -50,7 +50,7 @@ Full contract: [`openapi.yaml`](openapi.yaml). Real responses from `go run ./cmd
 ```sh
 # Evaluate an expression (what the UI uses)
 curl -X POST localhost:8080/api/v1/evaluate -d '{"expression":"2 + 3 * 4"}'
-# {"result":14,"repeat":"* 4"}        (repeat = what a second "=" re-applies)
+# {"result":14}
 
 # A single operation
 curl -X POST localhost:8080/api/v1/operations/divide -d '{"operands":[8,2]}'
@@ -79,7 +79,8 @@ Condensed from the spec's [decision log](docs/superpowers/specs/2026-11-16-calcu
 | Errors | `{error:{code,message}}` | Machine-readable code for tests, display-ready message for the UI. |
 | Wire format | ASCII expression string | Easy to curl and log; the backend owns tokenizing. |
 | Parser | Hand-written recursive descent | Contextual `%` and precise error positions are not possible with a library; extends cleanly. |
-| Repeated `=` | Backend returns `repeat` | Frontend never parses; API stays stateless. |
+| Repeated `=` | Client repeats the last operator + tail from its tokens (changed after code-quality review) | API stays stateless and returns only `result`; the frontend still never parses backend syntax. |
+| Keyboard focus | Mouse clicks don't focus buttons; Enter/Space on a keyboard-focused button is native, other keys go to the calculator (changed after code-quality review) | Tab + Enter works natively and a clicked toggle no longer swallows Enter. |
 | Negatives | `±` sends `(-n)`; grammar has parens | Math rules stay intact and `±` does what users expect. |
 | Input syntax | Decimals + e-notation, 256 char cap | Large results (`1e+21`) must round-trip through repeated `=`. |
 | Layout | `cmd/` + `internal/calc` + `internal/api` | Pure math testable without HTTP, no extra ceremony. |
@@ -108,7 +109,7 @@ frontend/src/
     molecules/         Display
     organisms/         Keypad, Calculator
     templates/         CenteredLayout
-  pages/               CalculatorPage
+    pages/             CalculatorPage
   styles/              tokens.css (design tokens, light/dark), global.css
 openapi.yaml           API contract
 Dockerfile             multi-stage: frontend build + Go build -> one image
@@ -127,6 +128,7 @@ The workflow is part of the deliverable. It was AI-assisted (Claude Code with th
 4. **[Plan](docs/superpowers/plans/2026-11-16-calculator.md)**: 15 small test-first tasks (14 build tasks plus a final review), each with files, steps and acceptance checks. A pre-flight scan checked every task's inputs against the previous task's outputs before any code was written.
 5. **TDD implementation, one or more commits per task** (fix rounds add commits): each task was implemented by a fresh subagent (red, green, refactor), then gated by an independent reviewer who had not seen the implementer's reasoning. Nothing moved on until the review was clean. See `git log --oneline` for the Conventional Commit history.
 6. **Final review** (task 15) of the whole branch.
+7. **Strict code-quality review and refactor**: a strict review of the finished code produced 7 structural findings. They were fixed in 5 more reviewed tasks via [`docs/superpowers/plans/2026-11-16-quality-refactor.md`](docs/superpowers/plans/2026-11-16-quality-refactor.md) (Task 3 needed a fix round because the first rewrite added concepts instead of removing them). Outcomes: repeated `=` moved to the client, which deleted the parser's repeat bookkeeping and the regex string-munging; reducer state became a union keyed on status; API errors go through one `writeError`; the focus model replaced "Enter on a focused key evaluates". Two of these were user decisions (repeat on the client, keyboard focus) and are marked in the spec's decision log.
 
 What the per-task reviews caught (fixed before moving on):
 

@@ -6,7 +6,7 @@ const fail = async (p: Promise<unknown>) => p.then(() => null, (e) => e);
 
 describe('evaluate', () => {
   it('POSTs the expression and returns the result', async () => {
-    const f = vi.fn(() => res('{"result":14,"repeat":"* 4"}'));
+    const f = vi.fn(() => res('{"result":14}'));
     expect(await evaluate('2 + 3 * 4', f as unknown as typeof fetch)).toEqual({ result: 14 });
     const [url, init] = f.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe('/api/v1/evaluate');
