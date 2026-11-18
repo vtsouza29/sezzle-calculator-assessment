@@ -84,6 +84,9 @@ Operations: `add subtract multiply divide power` (two operands), `sqrt percent` 
 | Documentation | This README: setup, API examples, design decisions; `openapi.yaml` |
 | Optional: Dockerfile | `Dockerfile` (multi-stage) and `docker-compose.yml` |
 | Deliverables: repo, README, tests and coverage report | This repo; `docs/coverage/` (HTML and text reports) |
+| Instructions: push to a Git repository | https://github.com/vtsouza29/sezzle-calculator-assessment |
+| Instructions: share the prompts used | [`docs/prompts.md`](docs/prompts.md) |
+| Instructions: README with setup, how to run frontend and backend, API examples, design decisions or assumptions | [Quick start](#quick-start), [Local development](#local-development), [API](#api), [Design decisions](#design-decisions), [Assumptions](#assumptions) |
 
 ## Design decisions
 
@@ -112,6 +115,20 @@ Condensed from the spec's [decision log](docs/superpowers/specs/2026-11-16-calcu
 
 **Why Sezzle's brand.** The keypad format is the familiar phone calculator, but the identity (palette, Satoshi font, pill keys, purple operators, mint `=`) comes from Sezzle, built on our own design tokens with no UI library or Tailwind.
 
+## Assumptions
+
+- **Stateless and single-user.** Each request evaluates one expression. There is no history, persistence, auth or rate limiting.
+- **The backend must be reachable.** The UI never computes, so if the API is down the display shows `Can't reach server`.
+- **Precision.** Numbers are `float64`, and results are rounded to 15 significant digits (see above). Integers above 2^53 lose exactness.
+- **Math rules.** Standard precedence: `^` binds tighter than unary minus, so `-2^2 = -4`. `±` negates the number being typed: `(-2)^2 = 4`.
+- **Percent.** On its own, `%` divides by 100 (`50% = 0.5`). After `+` or `−` it is a percentage of the left side (`200 + 10% = 220`). After `×`, `÷` or `^` it divides by 100.
+- **Repeated `=`.** It repeats the last operator and its operand: `5 + 5 = 10`, then `=` gives `15`.
+- **Error copy.** Division by zero (including `0^-1`) shows `Undefined`. `√` of a negative, a negative base with a fractional exponent, or malformed input shows `Invalid input`. A result beyond `float64` shows `Overflow`.
+- **Limits.** Expressions are capped at 256 characters and request bodies at 4 KB.
+- **Input format.** `.` is the decimal separator (the `,` key also maps to it). There is no locale-specific formatting, and the UI is English only.
+- **Browsers.** Current evergreen browsers. The layout is mobile-first and was checked at 375px wide.
+- **Fonts and brand.** Satoshi is self-hosted under Fontshare's free license. Sezzle's palette and patterns are used, but no logo or trademark assets.
+
 ## Project structure
 
 ```
@@ -138,7 +155,7 @@ docs/                  brief, spec, plan, coverage reports, screenshots
 
 ## How this was built
 
-The workflow is part of the deliverable. It was AI-assisted (Claude Code with the Superpowers skills), but spec-first and gated by review at every step:
+The workflow is part of the deliverable. It was AI-assisted (Claude Code with the Superpowers skills), but spec-first and gated by review at every step. Every prompt I gave the AI is in [`docs/prompts.md`](docs/prompts.md).
 
 1. **[Brief](docs/brief.md)**: the assessment as given.
 2. **Brainstorming and grilling**: the design was explored interactively, then stress-tested question by question until every behavior (key rules, percent semantics, error copy, API shape) was decided or explicitly marked as a call.
