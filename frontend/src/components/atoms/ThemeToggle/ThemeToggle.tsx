@@ -39,8 +39,14 @@ export function ThemeToggle() {
   }
 
   return (
-    <button type="button" className={styles.toggle} aria-label={`Switch to ${next} theme`} onClick={toggle}
-      onMouseDown={(e) => e.preventDefault()}
+    <button
+      type="button"
+      className={styles.toggle}
+      aria-label={`Switch to ${next} theme`}
+      onClick={(e) => {
+        toggle()
+        if (e.detail > 0) e.currentTarget.blur() // pointer click: drop focus (see Key)
+      }}
     >
       <span aria-hidden="true">{theme === 'dark' ? '☀' : '☾'}</span>
     </button>

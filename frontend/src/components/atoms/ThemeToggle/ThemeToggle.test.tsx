@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ThemeToggle } from './ThemeToggle'
@@ -43,11 +43,9 @@ describe('ThemeToggle', () => {
     expect(document.documentElement.dataset.theme).toBe('dark')
   })
 
-  it('prevents mousedown default so clicks do not take focus', async () => {
+  it('drops focus after a pointer click', async () => {
     render(<ThemeToggle />)
-    const btn = screen.getByRole('button')
-    expect(fireEvent.mouseDown(btn)).toBe(false)
-    await userEvent.click(btn)
-    expect(btn).not.toHaveFocus()
+    await userEvent.click(screen.getByRole('button'))
+    expect(document.body).toHaveFocus()
   })
 })

@@ -16,8 +16,11 @@ export function Key({ label, ariaLabel, variant, onPress, className }: KeyProps)
       type="button"
       className={[styles.key, styles[variant], className].filter(Boolean).join(' ')}
       aria-label={ariaLabel ?? label}
-      onClick={onPress}
-      onMouseDown={(e) => e.preventDefault()} // clicks must not take focus, so Enter keeps reaching the calculator
+      onClick={(e) => {
+        onPress()
+        // Pointer clicks (detail > 0) must not keep focus, so Enter keeps reaching the calculator; preventing mousedown would suppress :active in Firefox.
+        if (e.detail > 0) e.currentTarget.blur()
+      }}
     >
       {label}
     </button>
