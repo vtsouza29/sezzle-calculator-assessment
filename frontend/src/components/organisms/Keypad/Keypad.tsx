@@ -24,7 +24,7 @@ const KEYS: Def[] = [
 
 export function Keypad({ onAction }: { onAction: (a: Action) => void }) {
   return (
-    <div className={styles.keypad} data-keypad>
+    <div className={styles.keypad}>
       {KEYS.map((k) => (
         <Key key={k.label} label={k.label} ariaLabel={k.aria} variant={k.variant} className={k.className} onPress={() => onAction(k.action)} />
       ))}

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { Key } from './Key'
@@ -21,5 +21,13 @@ describe('Key', () => {
   it('applies the variant class', () => {
     render(<Key label="=" variant="equals" onPress={() => {}} />)
     expect(screen.getByRole('button')).toHaveClass('equals')
+  })
+
+  it('prevents mousedown default so clicks do not take focus', async () => {
+    render(<Key label="1" variant="digit" onPress={() => {}} />)
+    const btn = screen.getByRole('button')
+    expect(fireEvent.mouseDown(btn)).toBe(false)
+    await userEvent.click(btn)
+    expect(btn).not.toHaveFocus()
   })
 })

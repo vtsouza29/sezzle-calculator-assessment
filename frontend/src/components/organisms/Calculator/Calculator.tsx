@@ -14,14 +14,12 @@ export function Calculator({ evaluateFn }: { evaluateFn?: typeof evaluate }) {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return
-      // Enter/Space activate a focused control outside the keypad (e.g. ThemeToggle); leave those to the browser.
-      const t = e.target
-      if ((e.key === 'Enter' || e.key === ' ') && t instanceof Element &&
-          t.closest('button, a, input, select, textarea') && !t.closest('[data-keypad]')) return
+      // Only a keyboard-focused button reaches here with Enter/Space (clicks never focus); let it activate natively.
+      if ((e.key === 'Enter' || e.key === ' ') && e.target instanceof HTMLButtonElement) return
       const action = keyToAction(e.key)
       if (!action) return
       if (e.repeat && action.type === 'equals') return
-      e.preventDefault() // stops Enter from also clicking a focused key
+      e.preventDefault()
       dispatch(action)
     }
     window.addEventListener('keydown', onKeyDown)

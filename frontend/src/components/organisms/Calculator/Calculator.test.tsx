@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, it, vi } from 'vitest'
 import { ApiError } from '../../../api/client'
@@ -36,20 +36,26 @@ it('shows API error message', async () => {
   expect(await screen.findByText('Undefined')).toBeInTheDocument()
 })
 
-it('Enter on a focused key fires equals once and does not click the key', async () => {
+it('Enter on a tab-focused key types it and does not evaluate', async () => {
+  const fn = vi.fn().mockResolvedValue({ result: 5 })
+  const u = userEvent.setup()
+  render(<Calculator evaluateFn={fn} />)
+  screen.getByRole('button', { name: '7' }).focus()
+  await u.keyboard('{Enter}')
+  expect(document.querySelector('[aria-live]')).toHaveTextContent('7')
+  expect(fn).not.toHaveBeenCalled()
+})
+
+it('Enter with nothing focused evaluates once and is default-prevented', async () => {
   const fn = vi.fn().mockResolvedValue({ result: 5 })
   const u = userEvent.setup()
   render(<Calculator evaluateFn={fn} />)
   await u.keyboard('2+3')
-  const seven = screen.getByRole('button', { name: '7' })
-  const clicked = vi.fn()
-  seven.addEventListener('click', clicked)
-  seven.focus()
-  await u.keyboard('{Enter}')
-  expect(clicked).not.toHaveBeenCalled()
-  expect(fn).toHaveBeenCalledTimes(1)
+  const ev = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true, bubbles: true })
+  document.body.dispatchEvent(ev)
+  expect(ev.defaultPrevented).toBe(true)
+  await waitFor(() => expect(fn).toHaveBeenCalledTimes(1))
   expect(fn).toHaveBeenCalledWith('2 + 3')
-  expect(screen.getByText('2+3')).toBeInTheDocument()
 })
 
 it('ignores a second = while a request is in flight', async () => {
@@ -82,9 +88,11 @@ it('Enter on the theme toggle toggles the theme and does not evaluate', async ()
 })
 
 it('keeps typing after the theme toggle was clicked', async () => {
+  const fn = vi.fn().mockResolvedValue({ result: 4 })
   const u = userEvent.setup()
-  render(<Calculator evaluateFn={vi.fn()} />)
+  render(<Calculator evaluateFn={fn} />)
   await u.click(screen.getByRole('button', { name: /Switch to/ }))
-  await u.keyboard('7')
-  expect(document.querySelector('[aria-live]')).toHaveTextContent('7')
+  await u.keyboard('2+2{Enter}')
+  expect(fn).toHaveBeenCalledWith('2 + 2')
+  await waitFor(() => expect(document.querySelector('[aria-live]')).toHaveTextContent('4'))
 })

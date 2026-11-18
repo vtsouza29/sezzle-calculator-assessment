@@ -39,7 +39,9 @@ export function ThemeToggle() {
   }
 
   return (
-    <button type="button" className={styles.toggle} aria-label={`Switch to ${next} theme`} onClick={toggle}>
+    <button type="button" className={styles.toggle} aria-label={`Switch to ${next} theme`} onClick={toggle}
+      onMouseDown={(e) => e.preventDefault()}
+    >
       <span aria-hidden="true">{theme === 'dark' ? '☀' : '☾'}</span>
     </button>
   )
