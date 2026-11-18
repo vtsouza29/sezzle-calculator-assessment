@@ -19,7 +19,7 @@ func NewRouter(logger *slog.Logger, staticDir string) http.Handler {
 	} else {
 		r.NotFound(notFound)
 	}
-	r.MethodNotAllowed(methodNotAllowed)
+	r.MethodNotAllowed(func(w http.ResponseWriter, _ *http.Request) { writeError(w, errMethodNotAllowed) })
 
 	r.Get("/healthz", healthz)
 	r.Route("/api/v1", func(r chi.Router) {

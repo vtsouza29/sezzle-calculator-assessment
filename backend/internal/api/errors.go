@@ -8,55 +8,40 @@ import (
 	"calculator/internal/calc"
 )
 
-// Code is the wire error code. Calc codes are passed through as-is; the rest are transport-level.
-type Code string
+const invalidInput = "Invalid input"
 
-const (
-	codeInvalidJSON      Code = "INVALID_JSON"
-	codePayloadTooLarge  Code = "PAYLOAD_TOO_LARGE"
-	codeNotFound         Code = "NOT_FOUND"
-	codeMethodNotAllowed Code = "METHOD_NOT_ALLOWED"
-	codeInternal         Code = "INTERNAL"
-)
-
-// apiError is a transport-level failure (not produced by calc).
+// apiError is a transport-level failure (not produced by calc) that carries its own status.
 type apiError struct {
-	Code    Code
-	Message string
+	status    int
+	code, msg string
 }
 
-func (e *apiError) Error() string { return e.Message }
+func (e *apiError) Error() string { return e.msg }
 
 var (
-	errInvalidJSON      = &apiError{codeInvalidJSON, "Invalid input"}
-	errPayloadTooLarge  = &apiError{codePayloadTooLarge, "Invalid input"}
-	errNotFound         = &apiError{codeNotFound, "Not found"}
-	errMethodNotAllowed = &apiError{codeMethodNotAllowed, "Method not allowed"}
-	errInternal         = &apiError{codeInternal, "Internal error"}
+	errInvalidJSON      = &apiError{400, "INVALID_JSON", invalidInput}
+	errPayloadTooLarge  = &apiError{413, "PAYLOAD_TOO_LARGE", invalidInput}
+	errNotFound         = &apiError{404, "NOT_FOUND", "Not found"}
+	errMethodNotAllowed = &apiError{405, "METHOD_NOT_ALLOWED", "Method not allowed"}
 )
 
-// statusFor is the single code-to-status table; codes not listed are 500.
-var statusFor = map[Code]int{
-	Code(calc.CodeInvalidExpression): 400,
-	Code(calc.CodeExpressionTooLong): 400,
-	Code(calc.CodeInvalidOperands):   400,
-	codeInvalidJSON:                  400,
-	Code(calc.CodeUnknownOperation):  404,
-	codeNotFound:                     404,
-	codeMethodNotAllowed:             405,
-	Code(calc.CodeDivisionByZero):    422,
-	Code(calc.CodeInvalidOperation):  422,
-	Code(calc.CodeOverflow):          422,
-	codePayloadTooLarge:              413,
+// statusFor maps calc codes to HTTP statuses; unlisted codes are 500.
+var statusFor = map[calc.Code]int{
+	calc.CodeInvalidExpression: 400,
+	calc.CodeExpressionTooLong: 400,
+	calc.CodeInvalidOperands:   400,
+	calc.CodeUnknownOperation:  404,
+	calc.CodeDivisionByZero:    422,
+	calc.CodeInvalidOperation:  422,
+	calc.CodeOverflow:          422,
 }
 
-// result is the success body of both calculation endpoints.
 type result struct {
 	Result float64 `json:"result"`
 }
 
 type errBody struct {
-	Code     Code   `json:"code"`
+	Code     string `json:"code"`
 	Message  string `json:"message"`
 	Position *int   `json:"position,omitempty"`
 }
@@ -71,25 +56,20 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 func writeError(w http.ResponseWriter, err error) {
 	var ce *calc.Error
 	var ae *apiError
-	var b errBody
+	status, b := 500, errBody{Code: "INTERNAL", Message: "Internal error"}
 	switch {
 	case errors.As(err, &ce):
-		b = errBody{Code: Code(ce.Code), Message: ce.Message}
+		if s, ok := statusFor[ce.Code]; ok {
+			status = s
+		}
+		b = errBody{Code: string(ce.Code), Message: ce.Message}
 		if ce.Position >= 0 {
 			b.Position = &ce.Position
 		}
 	case errors.As(err, &ae):
-		b = errBody{Code: ae.Code, Message: ae.Message}
-	default:
-		b = errBody{Code: errInternal.Code, Message: errInternal.Message}
-	}
-	status, ok := statusFor[b.Code]
-	if !ok {
-		status = http.StatusInternalServerError
+		status, b = ae.status, errBody{Code: ae.code, Message: ae.msg}
 	}
 	writeJSON(w, status, map[string]errBody{"error": b})
 }
 
 func notFound(w http.ResponseWriter, _ *http.Request) { writeError(w, errNotFound) }
-
-func methodNotAllowed(w http.ResponseWriter, _ *http.Request) { writeError(w, errMethodNotAllowed) }
