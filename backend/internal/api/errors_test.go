@@ -1,16 +1,17 @@
 package api
 
 import (
+	"errors"
+	"net/http/httptest"
+	"strings"
 	"testing"
-
-	"calculator/internal/calc"
 )
 
-func TestStatusDefaultsTo500(t *testing.T) {
-	if got := status("NOPE"); got != 500 {
-		t.Fatalf("unmapped code: got %d, want 500", got)
-	}
-	if got := status(calc.CodeDivisionByZero); got != 422 {
-		t.Fatalf("mapped code: got %d, want 422", got)
+func TestWriteErrorUnknownIs500Internal(t *testing.T) {
+	rec := httptest.NewRecorder()
+	writeError(rec, errors.New("boom"))
+	want := `{"error":{"code":"INTERNAL","message":"Internal error"}}`
+	if rec.Code != 500 || strings.TrimSpace(rec.Body.String()) != want {
+		t.Fatalf("got %d %s", rec.Code, rec.Body)
 	}
 }

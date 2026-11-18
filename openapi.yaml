@@ -29,10 +29,7 @@ paths:
       operationId: evaluateExpression
       summary: Evaluate an expression
       description: |
-        Evaluates an infix expression. `repeat` is the last top-level binary
-        operator plus its right operand (e.g. `* 4`), which clients can append
-        to the result to implement a repeated `=`. It is omitted when the
-        expression has no top-level binary operator.
+        Evaluates an infix expression.
       requestBody:
         required: true
         content:
@@ -55,11 +52,10 @@ paths:
                 $ref: '#/components/schemas/EvaluateResponse'
               examples:
                 precedence:
-                  value: { result: 14, repeat: '* 4' }
+                  value: { result: 14 }
                 percent:
-                  value: { result: 220, repeat: + 10% }
+                  value: { result: 220 }
                 literal:
-                  summary: No top-level binary operator, so no repeat
                   value: { result: 42 }
         '400':
           description: Malformed JSON, invalid or too-long expression.
@@ -205,10 +201,6 @@ components:
         result:
           type: number
           description: Result rounded to 15 significant digits.
-        repeat:
-          type: string
-          description: Last top-level binary operator and its right operand.
-          examples: ['* 4']
     OperationName:
       type: string
       enum: [add, subtract, multiply, divide, power, sqrt, percent]

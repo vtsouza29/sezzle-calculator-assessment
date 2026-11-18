@@ -19,9 +19,9 @@ func decode(w http.ResponseWriter, r *http.Request, v any) bool {
 	if err := dec.Decode(v); err != nil {
 		var tooBig *http.MaxBytesError
 		if errors.As(err, &tooBig) {
-			writeCodeErr(w, CodePayloadTooLarge, "Invalid input")
+			writeError(w, errPayloadTooLarge)
 		} else {
-			writeCodeErr(w, CodeInvalidJSON, "Invalid input")
+			writeError(w, errInvalidJSON)
 		}
 		return false
 	}
@@ -37,10 +37,10 @@ func evaluate(w http.ResponseWriter, r *http.Request) {
 	}
 	res, err := calc.Evaluate(req.Expression)
 	if err != nil {
-		writeCalcErr(w, err)
+		writeError(w, err)
 		return
 	}
-	writeJSON(w, 200, map[string]float64{"result": res.Value})
+	writeJSON(w, 200, result{res.Value})
 }
 
 func operation(w http.ResponseWriter, r *http.Request) {
@@ -52,10 +52,10 @@ func operation(w http.ResponseWriter, r *http.Request) {
 	}
 	res, err := calc.Operate(chi.URLParam(r, "name"), req.Operands...)
 	if err != nil {
-		writeCalcErr(w, err)
+		writeError(w, err)
 		return
 	}
-	writeJSON(w, 200, map[string]float64{"result": res.Value})
+	writeJSON(w, 200, result{res.Value})
 }
 
 func healthz(w http.ResponseWriter, _ *http.Request) {

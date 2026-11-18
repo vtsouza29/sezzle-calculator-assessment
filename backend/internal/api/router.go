@@ -14,9 +14,10 @@ func NewRouter(logger *slog.Logger, staticDir string) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer, requestLogger(logger))
 
-	r.NotFound(notFound)
 	if staticDir != "" {
 		r.NotFound(spaHandler(staticDir))
+	} else {
+		r.NotFound(notFound)
 	}
 	r.MethodNotAllowed(methodNotAllowed)
 
