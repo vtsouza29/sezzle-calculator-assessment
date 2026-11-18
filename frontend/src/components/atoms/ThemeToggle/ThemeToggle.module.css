@@ -1,0 +1,27 @@
+.toggle {
+  width: var(--size-touch);
+  height: var(--size-touch);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-key);
+  background: var(--color-surface-card);
+  color: var(--color-text);
+  font-family: var(--font-family);
+  font-size: var(--font-size-expression);
+  cursor: pointer;
+  transition: transform 80ms ease-out;
+}
+
+.toggle:active {
+  transform: scale(0.96);
+}
+
+.toggle:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toggle {
+    transition: none;
+  }
+}

@@ -87,7 +87,7 @@ Under math rules `-2^2 = -4`, and `±` sends `(-2)` so that `± 2 xʸ 2 = 4`. An
 | Digits, `.` | Append to the current number. A second `.` in the same number is ignored. |
 | `+ − × ÷ xʸ` | Append a binary operator. Pressing an operator right after another operator replaces it. An operator on an empty expression starts from `0`. |
 | `=` | Send the expression to the backend and show the result. The expression line keeps what was evaluated. |
-| `=` again | Repeat the last operation: `5 + 5 = 10`, `=` gives `15`, `=` gives `20`. The backend returns the `repeat` fragment (§4.3), and the frontend sends `"<result> <repeat>"`. |
+| `=` again | Repeat the last operation: `5 + 5 = 10`, `=` gives `15`, `=` gives `20`. The client computes the repeat from its own tokens: the last operator token plus everything after it, kept as tokens (keypad tokens never contain parentheses), and sends `"<result> <repeat>"`. The API returns no `repeat` field (*changed after code-quality review, user decision*). |
 | `AC` | Clear everything. |
 | `⌫` | Delete the last typed character/token. |
 | `±` | Toggle the sign of the current number, sent as `(-n)` so `± 2 xʸ 2 = 4`. |
@@ -100,7 +100,7 @@ After a result:
 
 *My call:* this is the standard phone behavior.
 
-A result carried into the next expression (whether for repeated `=` or for continuing with an operator) is always sent as a number literal. A negative result is wrapped in parentheses: a result of `-2` with repeat `^ 2` is sent as `(-2) ^ 2 = 4`, not `-2 ^ 2 = -4`.
+A result carried into the next expression (whether for repeated `=` or for continuing with an operator) is always sent as a number literal. A negative result is wrapped in parentheses: a result of `-2` with repeated `^ 2` is sent as `(-2) ^ 2 = 4`, not `-2 ^ 2 = -4`.
 
 On an error:
 - The display shows the error text in the error color instead of a result.
@@ -120,7 +120,11 @@ On an error:
 
 ### 3.4 Physical keyboard (decided)
 
-Digits, `.` (and `,`), `+ - * / ^ %`, `Enter`/`=` for equals, `Backspace` for ⌫, `Escape` for AC. *My call:* `r` for √ and `n` for ± are nice-to-haves the builder may skip.
+Digits, `.` (and `,`), `+ - * / ^ %`, `Enter`/`=` for equals, `Backspace` for ⌫, `Escape` for AC.
+
+**Keyboard focus** (*changed after code-quality review, user decision*): mouse clicks do not move focus onto buttons. `Enter`/`Space` on a keyboard-focused button is native activation (Tab to `7` and press Enter types 7; Tab to the theme toggle and press Enter toggles the theme). Every other key, and `Enter` when no button is focused, goes to the calculator. This replaced the original rule "Enter on a focused key evaluates".
+
+ *My call:* `r` for √ and `n` for ± are nice-to-haves the builder may skip.
 
 ### 3.5 Frontend input validation
 
@@ -138,7 +142,7 @@ backend/
   internal/calc/            pure math, no HTTP imports
     operations.go           operation table: name → arity + func
     lexer.go                string → tokens (with positions)
-    parser.go               recursive descent → result (+ repeat fragment)
+    parser.go               recursive descent → value
     errors.go               typed errors carrying a code + display message
   internal/api/             chi router, handlers, JSON encode/decode, error → HTTP mapping
 ```
@@ -159,11 +163,10 @@ All bodies are JSON. Base path `/api/v1`.
 // request
 { "expression": "2 + 3 * 4" }
 // 200
-{ "result": 14, "repeat": "* 4" }
+{ "result": 14 }
 ```
 
-- `repeat` is the last top-level binary operator in the expression plus its right-hand operand, as source text (`"5 + 5"` gives `"+ 5"`, `"200 + 10%"` gives `"+ 10%"`). It is omitted when the expression has no binary operator.
-- *My call:* "top-level" means outside parentheses. The precise rule for nested cases is the builder's call, as long as the simple keypad cases above hold.
+- The response carries only `result`. Repeated `=` is computed on the client (§3.3), so the API stays stateless and the frontend never parses backend syntax (*changed after code-quality review, user decision*).
 
 **`POST /api/v1/operations/{op}`** (single operations, to match the brief)
 
@@ -244,7 +247,7 @@ frontend/src/
     templates/              CenteredLayout (phone full-bleed / desktop card)
     pages/                  CalculatorPage
   calculator/
-    reducer.ts              pure state machine: key events → state (expression tokens, result, error, repeat)
+    reducer.ts              pure state machine: key events → a union keyed on status (editing / pending / result / error), with a pure token editor
     expression.ts           tokens → display string and → API string (× → *, √ → sqrt, ± → (-n))
     keyboard.ts             KeyboardEvent → key event mapping
   api/client.ts             fetch wrapper: evaluate(expression) → result | typed error
@@ -305,7 +308,7 @@ frontend/src/
 | Error format | `{error:{code,message}}` | RFC 9457; flat string | Machine-readable code for tests, display-ready message for the UI. |
 | Wire format | Plain ASCII expression string | Token array; Unicode display symbols | Easy to curl and log. The backend owns tokenizing. |
 | Parser | Hand-written recursive descent | Shunting-yard; expr-lang | Contextual `%` and precise errors aren't possible with a library. The grammar extends cleanly for scientific mode. |
-| Repeated `=` | Backend returns `repeat` | Frontend tracks it; server session | The frontend never parses, and the API stays stateless. |
+| Repeated `=` | Client repeats the last operator token plus its tail, from tokens (*changed after code-quality review, user decision*; originally the backend returned `repeat`) | Backend returns `repeat`; server session | The API stays stateless and the frontend still never parses: keypad tokens contain no parentheses, so the token rule equals the old backend rule. Removes the parser's repeat bookkeeping. |
 | Op endpoints | `POST /operations/{op}` + operands array | Route per op; GET with query | One route, and new ops are table entries. |
 | Negatives | `±` sends `(-n)`, grammar has parens | Unary minus binds tightest; strict math | Math rules stay intact, and `±` does what the user expects. |
 | Input syntax | Decimals + e-notation, 256 char cap | Plain decimals only | Large results must round-trip through repeated `=`. |
@@ -313,5 +316,6 @@ frontend/src/
 | Testing | stdlib only | testify; fuzzing | No dependencies, idiomatic. |
 | Deployment | One multi-stage image + compose wrapper | Two services with nginx; both | Same origin, one image, and `docker compose up` stays the one-liner. |
 | Keypad | One six-row pad | Basic pad + collapsible fx row | Simplest to build and test, and it fits a phone. |
+| Keyboard focus | Mouse clicks don't focus buttons; Enter/Space on a keyboard-focused button is native, other keys go to the calculator (*changed after code-quality review, user decision*) | Enter on a focused key evaluates | Fixes the theme toggle being hijacked by Enter after a click, and keeps Tab + Enter native for keyboard users. |
 | Division by zero display | `Undefined` | "Can't divide by zero" | User decision. |
 | Visual identity | Sezzle palette, Satoshi, pill keys; mint `=`, purple operators | Own neutral palette with teal operators + orange `=` | User decision: the calculator is for Sezzle, so it should feel like Sezzle. |

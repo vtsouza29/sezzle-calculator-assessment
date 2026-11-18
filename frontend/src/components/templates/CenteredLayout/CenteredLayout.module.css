@@ -1,0 +1,16 @@
+.layout {
+  min-height: 100dvh;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.layout > * {
+  margin: auto;
+}
+
+@media (min-width: 480px) {
+  .layout {
+    padding: var(--space-5);
+  }
+}

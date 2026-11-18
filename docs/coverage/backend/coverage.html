@@ -1,0 +1,786 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>server: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">calculator/cmd/server/main.go (0.0%)</option>
+				
+				<option value="file1">calculator/internal/api/errors.go (93.8%)</option>
+				
+				<option value="file2">calculator/internal/api/handlers.go (100.0%)</option>
+				
+				<option value="file3">calculator/internal/api/router.go (100.0%)</option>
+				
+				<option value="file4">calculator/internal/api/static.go (100.0%)</option>
+				
+				<option value="file5">calculator/internal/calc/errors.go (80.0%)</option>
+				
+				<option value="file6">calculator/internal/calc/lexer.go (97.3%)</option>
+				
+				<option value="file7">calculator/internal/calc/operations.go (100.0%)</option>
+				
+				<option value="file8">calculator/internal/calc/parser.go (93.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">// Command server serves the calculator API (and optionally the static frontend).
+package main
+
+import (
+        "context"
+        "errors"
+        "flag"
+        "log/slog"
+        "net/http"
+        "os"
+        "os/signal"
+        "syscall"
+        "time"
+
+        "calculator/internal/api"
+)
+
+func main() {
+        <span class="cov0" title="0">healthcheck := flag.Bool("healthcheck", false, "GET /healthz on localhost and exit 0 if healthy")
+        flag.Parse()
+</span>
+        <span class="cov0" title="0">port := os.Getenv("PORT")
+        if port == "" </span>{
+                <span class="cov0" title="0">port = "8080"
+</span>        }
+
+        <span class="cov0" title="0">if *healthcheck </span>{
+                <span class="cov0" title="0">os.Exit(check(port))
+</span>        }
+
+        <span class="cov0" title="0">logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+        if err := run(logger, ":"+port, os.Getenv("STATIC_DIR")); err != nil </span>{
+                <span class="cov0" title="0">logger.Error("server failed", "error", err)
+                os.Exit(1)
+</span>        }
+}
+
+func run(logger *slog.Logger, addr, staticDir string) error {
+        <span class="cov0" title="0">srv := &amp;http.Server{
+                Addr:              addr,
+                Handler:           api.NewRouter(logger, staticDir),
+                ReadHeaderTimeout: 2 * time.Second,
+                ReadTimeout:       5 * time.Second,
+                WriteTimeout:      10 * time.Second,
+                IdleTimeout:       60 * time.Second,
+</span>        }
+
+        <span class="cov0" title="0">ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+        defer stop()
+</span>
+        <span class="cov0" title="0">errc := make(chan error, 1)
+        go func() </span>{ <span class="cov0" title="0">errc &lt;- srv.ListenAndServe() }</span>()
+        <span class="cov0" title="0">logger.Info("listening", "addr", addr)
+</span>
+        <span class="cov0" title="0">select </span>{
+        case err := &lt;-errc:
+                <span class="cov0" title="0">return err</span>
+        case &lt;-ctx.Done():<span class="cov0" title="0"></span>
+        }
+
+        <span class="cov0" title="0">logger.Info("shutting down")
+        shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+        defer cancel()
+        if err := srv.Shutdown(shutdownCtx); err != nil &amp;&amp; !errors.Is(err, http.ErrServerClosed) </span>{
+                <span class="cov0" title="0">return err
+</span>        }
+        <span class="cov0" title="0">return nil</span>
+}
+
+// check returns the process exit code: 0 if /healthz answers 200, else 1.
+func check(port string) int {
+        <span class="cov0" title="0">client := &amp;http.Client{Timeout: 2 * time.Second}
+        resp, err := client.Get("http://127.0.0.1:" + port + "/healthz")
+        if err != nil </span>{
+                <span class="cov0" title="0">return 1
+</span>        }
+        <span class="cov0" title="0">defer resp.Body.Close()
+        if resp.StatusCode != http.StatusOK </span>{
+                <span class="cov0" title="0">return 1
+</span>        }
+        <span class="cov0" title="0">return 0</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package api
+
+import (
+        "encoding/json"
+        "errors"
+        "net/http"
+
+        "calculator/internal/calc"
+)
+
+const invalidInput = "Invalid input"
+
+// apiError is a transport-level failure (not produced by calc) that carries its own status.
+type apiError struct {
+        status    int
+        code, msg string
+}
+
+func (e *apiError) Error() string { <span class="cov0" title="0">return e.msg }</span>
+
+var (
+        errInvalidJSON      = &amp;apiError{400, "INVALID_JSON", invalidInput}
+        errPayloadTooLarge  = &amp;apiError{413, "PAYLOAD_TOO_LARGE", invalidInput}
+        errNotFound         = &amp;apiError{404, "NOT_FOUND", "Not found"}
+        errMethodNotAllowed = &amp;apiError{405, "METHOD_NOT_ALLOWED", "Method not allowed"}
+)
+
+// statusFor maps calc codes to HTTP statuses; unlisted codes are 500.
+var statusFor = map[calc.Code]int{
+        calc.CodeInvalidExpression: 400,
+        calc.CodeExpressionTooLong: 400,
+        calc.CodeInvalidOperands:   400,
+        calc.CodeUnknownOperation:  404,
+        calc.CodeDivisionByZero:    422,
+        calc.CodeInvalidOperation:  422,
+        calc.CodeOverflow:          422,
+}
+
+type result struct {
+        Result float64 `json:"result"`
+}
+
+type errBody struct {
+        Code     string `json:"code"`
+        Message  string `json:"message"`
+        Position *int   `json:"position,omitempty"`
+}
+
+func writeJSON(w http.ResponseWriter, status int, v any) {
+        <span class="cov8" title="1">w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(status)
+        json.NewEncoder(w).Encode(v)
+</span>}
+
+// writeError is the only error writer; unknown errors become 500 INTERNAL.
+func writeError(w http.ResponseWriter, err error) {
+        <span class="cov8" title="1">var ce *calc.Error
+        var ae *apiError
+        status, b := 500, errBody{Code: "INTERNAL", Message: "Internal error"}
+        switch </span>{
+        case errors.As(err, &amp;ce):
+                <span class="cov8" title="1">if s, ok := statusFor[ce.Code]; ok </span>{
+                        <span class="cov8" title="1">status = s
+</span>                }
+                <span class="cov8" title="1">b = errBody{Code: string(ce.Code), Message: ce.Message}
+                if ce.Position &gt;= 0 </span>{
+                        <span class="cov8" title="1">b.Position = &amp;ce.Position
+</span>                }
+        case errors.As(err, &amp;ae):
+                <span class="cov8" title="1">status, b = ae.status, errBody{Code: ae.code, Message: ae.msg}</span>
+        }
+        <span class="cov8" title="1">writeJSON(w, status, map[string]errBody{"error": b})</span>
+}
+
+func notFound(w http.ResponseWriter, _ *http.Request) { <span class="cov8" title="1">writeError(w, errNotFound) }</span>
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package api
+
+import (
+        "encoding/json"
+        "errors"
+        "net/http"
+
+        "github.com/go-chi/chi/v5"
+
+        "calculator/internal/calc"
+)
+
+const maxBody = 4096
+
+// decode reads a strict JSON body into v; on failure it writes the error response and returns false.
+func decode(w http.ResponseWriter, r *http.Request, v any) bool {
+        <span class="cov8" title="1">dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBody))
+        dec.DisallowUnknownFields()
+        if err := dec.Decode(v); err != nil </span>{
+                <span class="cov8" title="1">var tooBig *http.MaxBytesError
+                if errors.As(err, &amp;tooBig) </span>{
+                        <span class="cov8" title="1">writeError(w, errPayloadTooLarge)
+</span>                } else {
+                        <span class="cov8" title="1">writeError(w, errInvalidJSON)
+</span>                }
+                <span class="cov8" title="1">return false</span>
+        }
+        <span class="cov8" title="1">return true</span>
+}
+
+func evaluate(w http.ResponseWriter, r *http.Request) {
+        <span class="cov8" title="1">var req struct {
+                Expression string `json:"expression"`
+</span>        }
+        <span class="cov8" title="1">if !decode(w, r, &amp;req) </span>{
+                <span class="cov8" title="1">return
+</span>        }
+        <span class="cov8" title="1">res, err := calc.Evaluate(req.Expression)
+        if err != nil </span>{
+                <span class="cov8" title="1">writeError(w, err)
+                return
+</span>        }
+        <span class="cov8" title="1">writeJSON(w, 200, result{res.Value})</span>
+}
+
+func operation(w http.ResponseWriter, r *http.Request) {
+        <span class="cov8" title="1">var req struct {
+                Operands []float64 `json:"operands"`
+</span>        }
+        <span class="cov8" title="1">if !decode(w, r, &amp;req) </span>{
+                <span class="cov8" title="1">return
+</span>        }
+        <span class="cov8" title="1">res, err := calc.Operate(chi.URLParam(r, "name"), req.Operands...)
+        if err != nil </span>{
+                <span class="cov8" title="1">writeError(w, err)
+                return
+</span>        }
+        <span class="cov8" title="1">writeJSON(w, 200, result{res.Value})</span>
+}
+
+func healthz(w http.ResponseWriter, _ *http.Request) {
+        <span class="cov8" title="1">writeJSON(w, 200, map[string]string{"status": "ok"})
+</span>}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package api
+
+import (
+        "log/slog"
+        "net/http"
+        "time"
+
+        "github.com/go-chi/chi/v5"
+        "github.com/go-chi/chi/v5/middleware"
+)
+
+// NewRouter builds the HTTP handler. staticDir "" disables static/SPA serving.
+func NewRouter(logger *slog.Logger, staticDir string) http.Handler {
+        <span class="cov8" title="1">r := chi.NewRouter()
+        r.Use(middleware.Recoverer, requestLogger(logger))
+</span>
+        <span class="cov8" title="1">if staticDir != "" </span>{
+                <span class="cov8" title="1">r.NotFound(spaHandler(staticDir))
+</span>        } else {
+                <span class="cov8" title="1">r.NotFound(notFound)
+</span>        }
+        <span class="cov8" title="1">r.MethodNotAllowed(func(w http.ResponseWriter, _ *http.Request) </span>{ <span class="cov8" title="1">writeError(w, errMethodNotAllowed) }</span>)
+
+        <span class="cov8" title="1">r.Get("/healthz", healthz)
+        r.Route("/api/v1", func(r chi.Router) </span>{
+                <span class="cov8" title="1">r.Post("/evaluate", evaluate)
+                r.Post("/operations/{name}", operation)
+</span>        })
+        <span class="cov8" title="1">return r</span>
+}
+
+func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
+        <span class="cov8" title="1">return func(next http.Handler) http.Handler </span>{
+                <span class="cov8" title="1">return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) </span>{
+                        <span class="cov8" title="1">start := time.Now()
+                        ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
+                        next.ServeHTTP(ww, r)
+                        logger.Info("request",
+                                "method", r.Method, "path", r.URL.Path, "status", ww.Status(),
+                                "duration_ms", time.Since(start).Milliseconds())
+</span>                })
+        }
+}
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">package api
+
+import (
+        "net/http"
+        "os"
+        "path"
+        "path/filepath"
+        "strings"
+)
+
+// spaHandler serves an existing file under dir, else index.html. /api/ paths always get the JSON 404.
+func spaHandler(dir string) http.HandlerFunc {
+        <span class="cov8" title="1">return func(w http.ResponseWriter, r *http.Request) </span>{
+                <span class="cov8" title="1">if strings.HasPrefix(r.URL.Path, "/api/") </span>{
+                        <span class="cov8" title="1">notFound(w, r)
+                        return
+</span>                }
+                <span class="cov8" title="1">f := filepath.Join(dir, filepath.FromSlash(path.Clean("/"+r.URL.Path)))
+                if st, err := os.Stat(f); err != nil || st.IsDir() </span>{
+                        <span class="cov8" title="1">f = filepath.Join(dir, "index.html")
+</span>                }
+                <span class="cov8" title="1">http.ServeFile(w, r, f)</span>
+        }
+}
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">package calc
+
+type Code string
+
+const (
+        CodeInvalidExpression Code = "INVALID_EXPRESSION"
+        CodeExpressionTooLong Code = "EXPRESSION_TOO_LONG"
+        CodeInvalidOperands   Code = "INVALID_OPERANDS"
+        CodeUnknownOperation  Code = "UNKNOWN_OPERATION"
+        CodeDivisionByZero    Code = "DIVISION_BY_ZERO"
+        CodeInvalidOperation  Code = "INVALID_OPERATION"
+        CodeOverflow          Code = "OVERFLOW"
+)
+
+// Error is a typed calculation error. Position is -1 when not applicable.
+type Error struct {
+        Code     Code
+        Message  string
+        Position int
+}
+
+func (e *Error) Error() string { <span class="cov0" title="0">return e.Message }</span>
+
+var messages = map[Code]string{
+        CodeDivisionByZero:   "Undefined",
+        CodeOverflow:         "Overflow",
+        CodeUnknownOperation: "Unknown operation",
+}
+
+func newError(code Code, pos int) *Error {
+        <span class="cov8" title="1">msg, ok := messages[code]
+        if !ok </span>{
+                <span class="cov8" title="1">msg = "Invalid input"
+</span>        }
+        <span class="cov8" title="1">return &amp;Error{Code: code, Message: msg, Position: pos}</span>
+}
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">package calc
+
+import (
+        "errors"
+        "strconv"
+        "strings"
+)
+
+type TokenKind int
+
+const (
+        TokNumber TokenKind = iota
+        TokPlus
+        TokMinus
+        TokStar
+        TokSlash
+        TokCaret
+        TokPercent
+        TokSqrt
+        TokLParen
+        TokRParen
+        TokEOF
+)
+
+// Token.Pos is the byte offset of the token's first character.
+type Token struct {
+        Kind  TokenKind
+        Value float64
+        Pos   int
+}
+
+var punct = map[byte]TokenKind{
+        '+': TokPlus, '-': TokMinus, '*': TokStar, '/': TokSlash,
+        '^': TokCaret, '%': TokPercent, '(': TokLParen, ')': TokRParen,
+}
+
+func isDigit(c byte) bool { <span class="cov8" title="1">return c &gt;= '0' &amp;&amp; c &lt;= '9' }</span>
+
+// Lex tokenizes input; the result always ends with TokEOF.
+func Lex(input string) ([]Token, error) {
+        <span class="cov8" title="1">var toks []Token
+        for i := 0; i &lt; len(input); </span>{
+                <span class="cov8" title="1">c := input[i]
+                switch </span>{
+                case c == ' ' || c == '\t' || c == '\n' || c == '\r':
+                        <span class="cov8" title="1">i++</span>
+                case isDigit(c) || c == '.':
+                        <span class="cov8" title="1">start := i
+                        for i &lt; len(input) &amp;&amp; isDigit(input[i]) </span>{
+                                <span class="cov8" title="1">i++
+</span>                        }
+                        <span class="cov8" title="1">if i &lt; len(input) &amp;&amp; input[i] == '.' </span>{
+                                <span class="cov8" title="1">i++
+                                fracStart := i
+                                for i &lt; len(input) &amp;&amp; isDigit(input[i]) </span>{
+                                        <span class="cov8" title="1">i++
+</span>                                }
+                                <span class="cov8" title="1">if i == fracStart &amp;&amp; start == fracStart-1 </span>{ // lone "."
+                                        <span class="cov8" title="1">return nil, newError(CodeInvalidExpression, start)
+</span>                                }
+                        }
+                        <span class="cov8" title="1">if i &lt; len(input) &amp;&amp; (input[i] == 'e' || input[i] == 'E') </span>{
+                                <span class="cov8" title="1">i++
+                                if i &lt; len(input) &amp;&amp; (input[i] == '+' || input[i] == '-') </span>{
+                                        <span class="cov8" title="1">i++
+</span>                                }
+                                <span class="cov8" title="1">expStart := i
+                                for i &lt; len(input) &amp;&amp; isDigit(input[i]) </span>{
+                                        <span class="cov8" title="1">i++
+</span>                                }
+                                <span class="cov8" title="1">if i == expStart </span>{
+                                        <span class="cov8" title="1">return nil, newError(CodeInvalidExpression, start)
+</span>                                }
+                        }
+                        <span class="cov8" title="1">v, err := strconv.ParseFloat(input[start:i], 64)
+                        if err != nil &amp;&amp; !errors.Is(err, strconv.ErrRange) </span>{
+                                <span class="cov0" title="0">return nil, newError(CodeInvalidExpression, start)
+</span>                        }
+                        <span class="cov8" title="1">toks = append(toks, Token{TokNumber, v, start})</span>
+                case strings.HasPrefix(input[i:], "sqrt"):
+                        <span class="cov8" title="1">toks = append(toks, Token{Kind: TokSqrt, Pos: i})
+                        i += 4</span>
+                default:
+                        <span class="cov8" title="1">k, ok := punct[c]
+                        if !ok </span>{
+                                <span class="cov8" title="1">return nil, newError(CodeInvalidExpression, i)
+</span>                        }
+                        <span class="cov8" title="1">toks = append(toks, Token{Kind: k, Pos: i})
+                        i++</span>
+                }
+        }
+        <span class="cov8" title="1">return append(toks, Token{Kind: TokEOF, Pos: len(input)}), nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file7" style="display: none">package calc
+
+import (
+        "math"
+        "strconv"
+)
+
+type Operation struct {
+        Arity int
+        Fn    func(args []float64) (float64, error)
+}
+
+var operations = map[string]Operation{
+        "add":      {2, func(a []float64) (float64, error) { <span class="cov8" title="1">return a[0] + a[1], nil }</span>},
+        "subtract": {2, func(a []float64) (float64, error) { <span class="cov8" title="1">return a[0] - a[1], nil }</span>},
+        "multiply": {2, func(a []float64) (float64, error) { <span class="cov8" title="1">return a[0] * a[1], nil }</span>},
+        "divide": {2, func(a []float64) (float64, error) {
+                <span class="cov8" title="1">if a[1] == 0 </span>{
+                        <span class="cov8" title="1">return 0, newError(CodeDivisionByZero, -1)
+</span>                }
+                <span class="cov8" title="1">return a[0] / a[1], nil</span>
+        }},
+        "power": {2, func(a []float64) (float64, error) {
+                <span class="cov8" title="1">if a[0] == 0 &amp;&amp; a[1] &lt; 0 </span>{
+                        <span class="cov8" title="1">return 0, newError(CodeDivisionByZero, -1)
+</span>                }
+                <span class="cov8" title="1">return math.Pow(a[0], a[1]), nil</span>
+        }},
+        "sqrt":    {1, func(a []float64) (float64, error) { <span class="cov8" title="1">return math.Sqrt(a[0]), nil }</span>},
+        "percent": {1, func(a []float64) (float64, error) { <span class="cov8" title="1">return a[0] / 100, nil }</span>},
+}
+
+// apply runs an operation without rounding.
+func apply(name string, args ...float64) (float64, error) {
+        <span class="cov8" title="1">op, ok := operations[name]
+        if !ok </span>{
+                <span class="cov8" title="1">return 0, newError(CodeUnknownOperation, -1)
+</span>        }
+        <span class="cov8" title="1">if len(args) != op.Arity </span>{
+                <span class="cov8" title="1">return 0, newError(CodeInvalidOperands, -1)
+</span>        }
+        <span class="cov8" title="1">r, err := op.Fn(args)
+        if err != nil </span>{
+                <span class="cov8" title="1">return 0, err
+</span>        }
+        <span class="cov8" title="1">return finite(r)</span>
+}
+
+// finite maps Inf/NaN results to typed errors.
+func finite(v float64) (float64, error) {
+        <span class="cov8" title="1">if math.IsInf(v, 0) </span>{
+                <span class="cov8" title="1">return 0, newError(CodeOverflow, -1)
+</span>        }
+        <span class="cov8" title="1">if math.IsNaN(v) </span>{
+                <span class="cov8" title="1">return 0, newError(CodeInvalidOperation, -1)
+</span>        }
+        <span class="cov8" title="1">return v, nil</span>
+}
+
+// Operate applies a named operation and rounds the result.
+func Operate(name string, args ...float64) (Result, error) {
+        <span class="cov8" title="1">v, err := apply(name, args...)
+        return Result{Value: round(v)}, err
+</span>}
+
+// round rounds to 15 significant digits and normalizes -0 to 0.
+func round(x float64) float64 {
+        <span class="cov8" title="1">r, _ := strconv.ParseFloat(strconv.FormatFloat(x, 'g', 15, 64), 64)
+        if r == 0 </span>{
+                <span class="cov8" title="1">return 0
+</span>        }
+        <span class="cov8" title="1">return r</span>
+}
+</pre>
+		
+		<pre class="file" id="file8" style="display: none">package calc
+
+const MaxExpressionLength = 256
+
+type Result struct{ Value float64 }
+
+// binaryOp names the operation for each left-associative binary token.
+var binaryOp = map[TokenKind]string{TokPlus: "add", TokMinus: "subtract", TokStar: "multiply", TokSlash: "divide"}
+
+// operand is a parsed value; pct/raw mark a bare `n%` so expr can apply the contextual rule.
+type operand struct {
+        v, raw float64
+        pct    bool
+}
+
+type parser struct {
+        toks []Token
+        i    int
+}
+
+func (p *parser) peek() Token { <span class="cov8" title="1">return p.toks[p.i] }</span>
+
+func (p *parser) next() Token {
+        <span class="cov8" title="1">t := p.toks[p.i]
+        p.i++
+        return t
+</span>}
+
+func (p *parser) fail() error { <span class="cov8" title="1">return newError(CodeInvalidExpression, p.peek().Pos) }</span>
+
+func (p *parser) expr() (operand, error) {
+        <span class="cov8" title="1">left, err := p.term()
+        if err != nil </span>{
+                <span class="cov8" title="1">return left, err
+</span>        }
+        <span class="cov8" title="1">for k := p.peek().Kind; k == TokPlus || k == TokMinus; k = p.peek().Kind </span>{
+                <span class="cov8" title="1">p.next()
+                right, err := p.term()
+                if err != nil </span>{
+                        <span class="cov8" title="1">return left, err
+</span>                }
+                <span class="cov8" title="1">if right.pct </span>{
+                        <span class="cov8" title="1">if right.v, err = apply("multiply", left.v, right.raw); err == nil </span>{
+                                <span class="cov8" title="1">right.v, err = apply("percent", right.v)
+</span>                        }
+                        <span class="cov8" title="1">if err != nil </span>{
+                                <span class="cov0" title="0">return left, err
+</span>                        }
+                }
+                <span class="cov8" title="1">if left.v, err = apply(binaryOp[k], left.v, right.v); err != nil </span>{
+                        <span class="cov8" title="1">return left, err
+</span>                }
+        }
+        <span class="cov8" title="1">return left, nil</span>
+}
+
+func (p *parser) term() (operand, error) {
+        <span class="cov8" title="1">left, err := p.unary()
+        if err != nil </span>{
+                <span class="cov8" title="1">return left, err
+</span>        }
+        <span class="cov8" title="1">for k := p.peek().Kind; k == TokStar || k == TokSlash; k = p.peek().Kind </span>{
+                <span class="cov8" title="1">p.next()
+                right, err := p.unary()
+                if err != nil </span>{
+                        <span class="cov0" title="0">return left, err
+</span>                }
+                <span class="cov8" title="1">if left.v, err = apply(binaryOp[k], left.v, right.v); err != nil </span>{
+                        <span class="cov8" title="1">return left, err
+</span>                }
+                <span class="cov8" title="1">left.pct = false</span>
+        }
+        <span class="cov8" title="1">return left, nil</span>
+}
+
+func (p *parser) unary() (operand, error) {
+        <span class="cov8" title="1">if p.peek().Kind != TokMinus </span>{
+                <span class="cov8" title="1">return p.power()
+</span>        }
+        <span class="cov8" title="1">p.next()
+        o, err := p.unary()
+        return operand{v: -o.v}, err</span>
+}
+
+func (p *parser) power() (operand, error) {
+        <span class="cov8" title="1">base, err := p.prefix()
+        if err != nil || p.peek().Kind != TokCaret </span>{
+                <span class="cov8" title="1">return base, err
+</span>        }
+        <span class="cov8" title="1">p.next()
+        exp, err := p.unary()
+        if err != nil </span>{
+                <span class="cov0" title="0">return base, err
+</span>        }
+        <span class="cov8" title="1">v, err := apply("power", base.v, exp.v)
+        return operand{v: v}, err</span>
+}
+
+func (p *parser) prefix() (operand, error) {
+        <span class="cov8" title="1">if p.peek().Kind != TokSqrt </span>{
+                <span class="cov8" title="1">return p.postfix()
+</span>        }
+        <span class="cov8" title="1">p.next()
+        o, err := p.prefix()
+        if err != nil </span>{
+                <span class="cov0" title="0">return o, err
+</span>        }
+        <span class="cov8" title="1">v, err := apply("sqrt", o.v)
+        return operand{v: v}, err</span>
+}
+
+func (p *parser) postfix() (operand, error) {
+        <span class="cov8" title="1">o, err := p.primary()
+        if err != nil || p.peek().Kind != TokPercent </span>{
+                <span class="cov8" title="1">return o, err
+</span>        }
+        <span class="cov8" title="1">p.next()
+        v, err := apply("percent", o.v)
+        return operand{v: v, raw: o.v, pct: true}, err</span>
+}
+
+func (p *parser) primary() (operand, error) {
+        <span class="cov8" title="1">switch t := p.peek(); t.Kind </span>{
+        case TokNumber:
+                <span class="cov8" title="1">p.next()
+                return operand{v: t.Value}, nil</span>
+        case TokLParen:
+                <span class="cov8" title="1">p.next()
+                o, err := p.expr()
+                if err != nil </span>{
+                        <span class="cov0" title="0">return o, err
+</span>                }
+                <span class="cov8" title="1">if p.peek().Kind != TokRParen </span>{
+                        <span class="cov8" title="1">return o, p.fail()
+</span>                }
+                <span class="cov8" title="1">p.next()
+                return operand{v: o.v}, nil</span>
+        }
+        <span class="cov8" title="1">return operand{}, p.fail()</span>
+}
+
+// Evaluate parses and evaluates expr, returning the rounded value.
+func Evaluate(expr string) (Result, error) {
+        <span class="cov8" title="1">if len(expr) &gt; MaxExpressionLength </span>{
+                <span class="cov8" title="1">return Result{}, newError(CodeExpressionTooLong, -1)
+</span>        }
+        <span class="cov8" title="1">toks, err := Lex(expr)
+        if err != nil </span>{
+                <span class="cov0" title="0">return Result{}, err
+</span>        }
+        <span class="cov8" title="1">p := &amp;parser{toks: toks}
+        o, err := p.expr()
+        if err == nil &amp;&amp; p.peek().Kind != TokEOF </span>{
+                <span class="cov8" title="1">err = p.fail()
+</span>        }
+        <span class="cov8" title="1">if err != nil </span>{
+                <span class="cov8" title="1">return Result{}, err
+</span>        }
+        // A bare literal such as 1e999 never passes through apply.
+        <span class="cov8" title="1">v, err := finite(o.v)
+        return Result{Value: round(v)}, err</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

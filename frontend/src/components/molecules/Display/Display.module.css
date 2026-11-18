@@ -1,0 +1,7 @@
+.display {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-3);
+}

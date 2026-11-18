@@ -1,0 +1,29 @@
+.line {
+  width: 100%;
+  text-align: right;
+  font-family: var(--font-family);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.expression {
+  min-height: 1.5em;
+  font-size: var(--font-size-expression);
+  color: var(--color-text-muted);
+}
+
+.result {
+  font-size: var(--font-size-display);
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.error {
+  font-size: var(--font-size-display);
+  font-weight: 500;
+  color: var(--color-error);
+}
+
+.long {
+  font-size: var(--font-size-display-sm);
+}
